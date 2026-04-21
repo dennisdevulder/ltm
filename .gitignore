@@ -1,0 +1,9 @@
+.claude/
+.DS_Store
+*.log
+node_modules/
+dist/
+build/
+target/
+.env
+.env.*
