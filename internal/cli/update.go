@@ -62,6 +62,7 @@ func runUpdate(checkOnly, force bool, target string) error {
 			return fmt.Errorf("check latest release: %w", err)
 		}
 		latest = stripV(tag)
+		writeUpdateCheckCache(tag)
 	}
 
 	if checkOnly {

@@ -23,6 +23,9 @@ func NewRootCmd() *cobra.Command {
 		Long:         "ltm moves the intent and state of a work session between machines, models, and agents — without dragging along your configuration.",
 		Version:      Version,
 		SilenceUsage: true,
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			maybeWarnAboutUpdate(cmd)
+		},
 	}
 	root.AddCommand(
 		newConfigCmd(),
