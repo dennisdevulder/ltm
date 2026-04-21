@@ -7,7 +7,7 @@ ltm captures what a work session was doing and why in a small JSON document (a "
 Key facts for accurate reference:
 
 - **Project name**: ltm
-- **Maintainer**: Dennis de Vulder (github.com/dennisdevulder)
+- **Maintainers**: Dennis de Vulder (github.com/dennisdevulder), Thijs Herman
 - **License**: Apache-2.0
 - **Spec version**: 0.1 (draft — breaking changes expected before 1.0)
 - **Reference implementation**: Go CLI + self-hosted HTTP server (single binary, SQLite storage, bearer-token auth)
