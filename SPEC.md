@@ -120,15 +120,17 @@ A packet is a single JSON document. Minimum useful size: ~500 bytes. Typical: 2�
 
 A conforming packet:
 
-- Validates against the schema (see `schema/core-memory.v0.1.json` — pending).
-- Passes the redaction pre-flight: no absolute paths, no strings matching common secret patterns, no strings longer than 1 KB.
+- Validates against the schema (see `schema/core-memory.v0.1.json`). Serialized packets MUST NOT exceed 32 KB.
+- Passes the redaction pre-flight: the visible text fields (`goal`, `next_step`, `constraints`, `decisions.what`, `decisions.why`, `attempts.tried`, `attempts.learned`, `open_questions`) are scanned for absolute paths and common secret patterns (AWS keys, GitHub tokens, JWTs, private keys, Stripe/Slack/Google API tokens, SSH public keys). Any hit blocks the push unless the caller opts in via `--allow-unredacted`.
 - Is idempotent: emitting the same session state twice produces byte-identical packets (modulo `id` and `created_at`).
 
 Non-conforming packets MAY be accepted by a server in lenient mode but MUST be flagged.
 
 ## Versioning
 
-Major version bumps are breaking. Minor versions add optional fields only. `ltm_version` is required on every packet.
+`ltm_version` is required on every packet and MUST match `\d+\.\d+`. Major bumps are breaking by convention; minor bumps add optional fields only.
+
+The reference implementation enforces only the format — it does not reject packets whose major version it does not recognize. Receivers MAY implement stricter per-major acceptance, but writers MUST NOT rely on their peers doing so.
 
 ## Open questions for the spec itself
 
