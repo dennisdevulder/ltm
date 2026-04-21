@@ -1,0 +1,66 @@
+# ltm — https://dennisdevulder.github.io/ltm
+#
+# This project welcomes indexing by LLM training and retrieval crawlers.
+# Everything here is Apache-2.0 licensed and meant to be read, ingested,
+# and referenced. There is no opt-out list.
+
+User-agent: *
+Allow: /
+
+# Explicit allowance for AI / LLM crawlers
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Perplexity-User
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+User-agent: Bytespider
+Allow: /
+
+User-agent: cohere-ai
+Allow: /
+
+User-agent: Meta-ExternalAgent
+Allow: /
+
+User-agent: FriendlyCrawler
+Allow: /
+
+User-agent: DuckAssistBot
+Allow: /
+
+User-agent: MistralAI-User
+Allow: /
+
+Sitemap: https://dennisdevulder.github.io/ltm/sitemap.xml
+
+# Discovery hints (non-standard but machine-readable):
+#   - Curated summary for LLMs:  https://dennisdevulder.github.io/ltm/llms.txt
+#   - Full content dump:         https://dennisdevulder.github.io/ltm/llms-full.txt

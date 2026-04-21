@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - 'website/**'
+      - 'README.md'
+      - 'SPEC.md'
+      - 'install.sh'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -29,6 +32,34 @@ jobs:
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
+
+      - name: Sync install script into website/
+        run: cp install.sh website/install && chmod +x website/install
+
+      - name: Build llms-full.txt from README and SPEC
+        run: |
+          {
+            echo "# ltm — full content for LLMs"
+            echo
+            echo "Auto-generated from README.md and SPEC.md at build time."
+            echo "Regenerated on each deploy of https://dennisdevulder.github.io/ltm/"
+            echo
+            echo "Canonical sources:"
+            echo "  - https://github.com/dennisdevulder/ltm/blob/main/README.md"
+            echo "  - https://github.com/dennisdevulder/ltm/blob/main/SPEC.md"
+            echo
+            echo "==="
+            echo
+            echo "# README"
+            echo
+            cat README.md
+            echo
+            echo "==="
+            echo
+            echo "# Core Memory Packet Specification"
+            echo
+            cat SPEC.md
+          } > website/llms-full.txt
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

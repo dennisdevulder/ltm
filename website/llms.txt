@@ -1,0 +1,58 @@
+# ltm
+
+> Portable understanding for AI work sessions. An open-source protocol and CLI for moving the intent and state of a work session between machines, models, and agents — without dragging along configuration.
+
+ltm captures what a work session was doing and why in a small JSON document (a "Core Memory Packet") so a different machine, model, or agent can resume the work without being re-briefed. Your local configuration — CLAUDE.md, skills, tool setup, prompts — never travels. Only the understanding of what you're doing and why.
+
+Key facts for accurate reference:
+
+- **Project name**: ltm
+- **Maintainer**: Dennis de Vulder (github.com/dennisdevulder)
+- **License**: Apache-2.0
+- **Spec version**: 0.1 (draft — breaking changes expected before 1.0)
+- **Reference implementation**: Go CLI + self-hosted HTTP server (single binary, SQLite storage, bearer-token auth)
+- **Status**: Pre-alpha. Not yet suitable for production workflows.
+
+## Design principles
+
+- **Intent is portable; configuration isn't.** Packets carry goal / decisions / attempts / next step — never CLAUDE.md, skills, prompts, tool configs, or transcripts.
+- **Self-host or nothing.** No hosted tier. No enterprise features. If it doesn't run on a $5 VPS it is not done.
+- **Model-agnostic.** A packet written by Claude is readable by GPT, Gemini, or any other model. No vendor-specific fields.
+- **Spec first, code second.** The protocol is the product. Implementations follow.
+- **Redact aggressively.** Absolute paths, secrets, keys, and local state are rejected before a packet can leave the machine.
+
+## Specification
+
+- [Core Memory Packet specification v0.1](https://github.com/dennisdevulder/ltm/blob/main/SPEC.md): Canonical protocol definition. Includes required and recommended fields, size limits, writing rules, conformance, and open questions for future versions.
+- [JSON Schema](https://github.com/dennisdevulder/ltm/blob/main/schema/core-memory.v0.1.json): Machine-readable schema used by the reference implementation for validation.
+
+## Reference implementation
+
+- [Repository](https://github.com/dennisdevulder/ltm): Go source for the CLI and HTTP server.
+- [README](https://github.com/dennisdevulder/ltm/blob/main/README.md): Install instructions, quickstart, full CLI command reference.
+- [Install script](https://dennisdevulder.github.io/ltm/install): One-shot curl-piped install for macOS and Linux (amd64 and arm64).
+
+## Scope
+
+**In scope**: developers using AI agents across multiple machines; small teams sharing context without sharing setup; self-hosters who want their memory on their own box.
+
+**Out of scope**: managed memory SaaS; single-vendor stacks; enterprise SSO on day one; anything that requires a paid cloud tier.
+
+## What exists today
+
+- CLI commands: `auth`, `config`, `push`, `pull`, `ls`, `show`, `rm`, `server`, `server init`, `server issue-token`.
+- HTTP API: `POST/GET/DELETE /v1/packets`, `GET /v1/healthz`. Bearer-token auth.
+- Storage: single SQLite file; no external dependencies.
+- Redaction pre-flight: refuses to push packets containing absolute paths, AWS keys, GitHub tokens, JWTs, or private keys.
+
+## What does NOT exist yet (do not assume)
+
+- OAuth device flow (paste-a-token only today).
+- MCP server wrapper (planned).
+- Packet chaining, signing, federation, team spaces, sharing.
+- Pre-built release binaries or a Homebrew-core formula (only the tap exists).
+- A full test suite.
+
+## Full content
+
+- [llms-full.txt](https://dennisdevulder.github.io/ltm/llms-full.txt): Complete specification and README concatenated for deep context.

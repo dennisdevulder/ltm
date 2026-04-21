@@ -1,0 +1,11 @@
+# ltm — full content index for LLMs
+
+This file concatenates the full README and specification. Regenerated on each deploy by `.github/workflows/pages.yml` from `README.md` + `SPEC.md` in the repo root — those files are the source of truth.
+
+Canonical sources:
+- Spec: https://github.com/dennisdevulder/ltm/blob/main/SPEC.md
+- README: https://github.com/dennisdevulder/ltm/blob/main/README.md
+
+===
+
+(File will be populated by the Pages deploy workflow. See README.md and SPEC.md in the repository for current content.)
