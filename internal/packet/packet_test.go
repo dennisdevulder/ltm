@@ -228,7 +228,7 @@ func TestValidate_SchemaBoundaries(t *testing.T) {
 		{
 			name:      "missing ltm_version",
 			raw:       `{"id":"` + validID + `","created_at":"` + validCreated + `","goal":"g","next_step":"n"}`,
-			wantError: "missing property",
+			wantError: "missing required field 'ltm_version'",
 		},
 		{
 			name:      "empty goal",
@@ -246,9 +246,9 @@ func TestValidate_SchemaBoundaries(t *testing.T) {
 			wantError: "maxLength",
 		},
 		{
-			name:      "ltm_version bad pattern",
+			name:      "ltm_version unsupported",
 			raw:       `{"ltm_version":"v0.1","id":"` + validID + `","created_at":"` + validCreated + `","goal":"g","next_step":"n"}`,
-			wantError: "pattern",
+			wantError: "unsupported ltm_version",
 		},
 	}
 
@@ -339,5 +339,85 @@ func TestNewID_FormatAndUniqueness(t *testing.T) {
 			t.Fatalf("NewID() returned duplicate after %d iterations: %q", i, id)
 		}
 		seen[id] = struct{}{}
+	}
+}
+
+// ---- v0.2 schema coverage ----
+
+func TestSupportedVersions(t *testing.T) {
+	got := SupportedVersions()
+	want := []string{"0.1", "0.2"}
+	if len(got) != len(want) {
+		t.Fatalf("SupportedVersions()=%v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("SupportedVersions()[%d]=%q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
+func TestValidate_V02_Accepts_All_New_Fields(t *testing.T) {
+	raw := `{
+  "ltm_version": "0.2",
+  "id": "` + validID + `",
+  "parent_id": "01JABCDEF9999999999AAAAAAA",
+  "created_at": "` + validCreated + `",
+  "goal": "g",
+  "success_criteria": ["app returns 200 on /v1/healthz"],
+  "decisions": [
+    {"what":"use ltm-hub-db","why":"accessory host","consequences":"locks us to same-box PG","locked":true}
+  ],
+  "methods": [
+    {"name":"refresh-ghcr-login","when_applicable":"push denied","how":"bin/kamal registry login"}
+  ],
+  "attempts": [
+    {"tried":"fine-grained PAT","outcome":"failed","learned":"first-push needs classic PAT","confidence":"high"}
+  ],
+  "next_step": "n"
+}`
+	if err := Validate([]byte(raw)); err != nil {
+		t.Fatalf("expected v0.2 packet with all new fields to validate, got: %v", err)
+	}
+	p, err := Parse([]byte(raw))
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if p.ParentID == "" {
+		t.Error("ParentID not unmarshaled")
+	}
+	if len(p.SuccessCriteria) != 1 {
+		t.Error("SuccessCriteria not unmarshaled")
+	}
+	if len(p.Methods) != 1 || p.Methods[0].Name != "refresh-ghcr-login" {
+		t.Error("Methods not unmarshaled correctly")
+	}
+	if len(p.Decisions) != 1 || p.Decisions[0].Consequences == "" {
+		t.Error("Decision.Consequences not unmarshaled")
+	}
+	if len(p.Attempts) != 1 || p.Attempts[0].Confidence != "high" {
+		t.Error("Attempt.Confidence not unmarshaled")
+	}
+}
+
+func TestValidate_V01_Rejects_V02_Fields(t *testing.T) {
+	// A v0.1 packet carrying v0.2-only fields must fail because v0.1 schema
+	// has additionalProperties:false. This protects older servers.
+	raw := `{"ltm_version":"0.1","id":"` + validID +
+		`","created_at":"` + validCreated +
+		`","goal":"g","next_step":"n","parent_id":"01JABCDEF9999999999AAAAAAA"}`
+	err := Validate([]byte(raw))
+	if err == nil {
+		t.Fatal("expected v0.1 schema to reject parent_id, got nil")
+	}
+	if !strings.Contains(err.Error(), "additional") {
+		t.Errorf("expected 'additional properties' error, got: %v", err)
+	}
+}
+
+func TestNew_ProducesCurrentVersion(t *testing.T) {
+	p := New()
+	if p.LTMVersion != "0.2" {
+		t.Errorf("New() LTMVersion=%q, want 0.2", p.LTMVersion)
 	}
 }

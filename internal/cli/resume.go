@@ -143,26 +143,67 @@ func pickPacketID(cl *client) (string, error) {
 
 // ---- rendering ----
 
+// renderResumeBlock produces the markdown block pasted into an agent's
+// opening prompt. Ordering follows Liu et al. 2023 ("Lost in the Middle"):
+// the highest-priority fields (goal, locked decisions, failed attempts,
+// next_step) are placed at the start and end of the block; lower-priority
+// context (constraints, methods, tentative decisions, open questions) sits
+// in the middle where model attention sags.
 func renderResumeBlock(p *packet.Packet) string {
 	var b strings.Builder
+
 	fmt.Fprintln(&b, "# Resume context — ltm Core Memory Packet")
 	fmt.Fprintln(&b)
-	fmt.Fprintln(&b, "You are resuming prior work. The block below was written at the end of an earlier session by a previous agent/human pair. Treat it as authoritative: decisions marked locked are settled and must not be re-litigated; attempts listed here have already been tried and should not be repeated unless new information warrants it; the 'Next step' is your first action.")
+	fmt.Fprintln(&b, "You are resuming prior work. Treat this block as authoritative:")
+	fmt.Fprintln(&b, "- Decisions marked **locked** are settled; do not re-litigate them.")
+	fmt.Fprintln(&b, "- Attempts listed as failed have already been tried and must not be retried unless new information warrants it.")
+	fmt.Fprintln(&b, "- 'Next step' is your first action.")
 	fmt.Fprintln(&b)
+
+	// ---- START (high-attention) ----
 
 	fmt.Fprintln(&b, "## Goal")
 	fmt.Fprintln(&b, p.Goal)
 
-	if p.Project != nil && (p.Project.Name != "" || p.Project.Ref != "") {
+	if len(p.SuccessCriteria) > 0 {
 		fmt.Fprintln(&b)
-		fmt.Fprintln(&b, "## Project")
-		if p.Project.Name != "" {
-			fmt.Fprintf(&b, "- Name: %s\n", p.Project.Name)
-		}
-		if p.Project.Ref != "" {
-			fmt.Fprintf(&b, "- Ref:  %s\n", p.Project.Ref)
+		fmt.Fprintln(&b, "## Success criteria (you're done when)")
+		for _, s := range p.SuccessCriteria {
+			fmt.Fprintln(&b, "- "+s)
 		}
 	}
+
+	locked, tentative := splitDecisions(p.Decisions)
+	if len(locked) > 0 {
+		fmt.Fprintln(&b)
+		fmt.Fprintln(&b, "## Locked decisions (do not revisit)")
+		for _, d := range locked {
+			fmt.Fprintf(&b, "- %s\n  Rationale: %s\n", d.What, d.Why)
+			if d.Consequences != "" {
+				fmt.Fprintf(&b, "  Consequences: %s\n", d.Consequences)
+			}
+		}
+	}
+
+	if failed := filterAttempts(p.Attempts, "failed", "partial"); len(failed) > 0 {
+		fmt.Fprintln(&b)
+		fmt.Fprintln(&b, "## Prior attempts (do not retry without new information)")
+		for _, a := range failed {
+			fmt.Fprintf(&b, "- [%s] %s\n", a.Outcome, a.Tried)
+			if a.Learned != "" {
+				fmt.Fprintf(&b, "  Learned: %s\n", a.Learned)
+			}
+			if a.Confidence != "" {
+				fmt.Fprintf(&b, "  Confidence this outcome is final: %s\n", a.Confidence)
+			}
+		}
+	}
+
+	fmt.Fprintln(&b)
+	fmt.Fprintln(&b, "## Your first action")
+	fmt.Fprintln(&b, p.NextStep)
+
+	// ---- MIDDLE (lower-attention background) ----
 
 	if len(p.Constraints) > 0 {
 		fmt.Fprintln(&b)
@@ -172,25 +213,32 @@ func renderResumeBlock(p *packet.Packet) string {
 		}
 	}
 
-	if len(p.Decisions) > 0 {
+	if len(p.Methods) > 0 {
 		fmt.Fprintln(&b)
-		fmt.Fprintln(&b, "## Decisions")
-		for _, d := range p.Decisions {
-			tag := "locked"
-			if !d.Locked {
-				tag = "tentative"
-			}
-			fmt.Fprintf(&b, "- [%s] %s\n  Rationale: %s\n", tag, d.What, d.Why)
+		fmt.Fprintln(&b, "## Reusable methods (apply when the trigger matches)")
+		for _, m := range p.Methods {
+			fmt.Fprintf(&b, "- **%s** — when: %s\n  how: %s\n", m.Name, m.WhenApplicable, m.How)
 		}
 	}
 
-	if len(p.Attempts) > 0 {
+	if succeeded := filterAttempts(p.Attempts, "succeeded"); len(succeeded) > 0 {
 		fmt.Fprintln(&b)
-		fmt.Fprintln(&b, "## Prior attempts (do not retry without new information)")
-		for _, a := range p.Attempts {
-			fmt.Fprintf(&b, "- [%s] %s\n", a.Outcome, a.Tried)
+		fmt.Fprintln(&b, "## Attempts that worked")
+		for _, a := range succeeded {
+			fmt.Fprintf(&b, "- %s\n", a.Tried)
 			if a.Learned != "" {
 				fmt.Fprintf(&b, "  Learned: %s\n", a.Learned)
+			}
+		}
+	}
+
+	if len(tentative) > 0 {
+		fmt.Fprintln(&b)
+		fmt.Fprintln(&b, "## Tentative decisions (can be revisited with cause)")
+		for _, d := range tentative {
+			fmt.Fprintf(&b, "- %s\n  Rationale: %s\n", d.What, d.Why)
+			if d.Consequences != "" {
+				fmt.Fprintf(&b, "  Consequences: %s\n", d.Consequences)
 			}
 		}
 	}
@@ -203,14 +251,34 @@ func renderResumeBlock(p *packet.Packet) string {
 		}
 	}
 
-	fmt.Fprintln(&b)
-	fmt.Fprintln(&b, "## Next step")
-	fmt.Fprintln(&b, p.NextStep)
+	if p.Project != nil && (p.Project.Name != "" || p.Project.Ref != "") {
+		fmt.Fprintln(&b)
+		fmt.Fprintln(&b, "## Project")
+		if p.Project.Name != "" {
+			fmt.Fprintf(&b, "- Name: %s\n", p.Project.Name)
+		}
+		if p.Project.Ref != "" {
+			fmt.Fprintf(&b, "- Ref:  %s\n", p.Project.Ref)
+		}
+	}
+
+	// ---- END (high-attention re-anchor) ----
 
 	fmt.Fprintln(&b)
 	fmt.Fprintln(&b, "---")
-	fmt.Fprintf(&b, "Packet ID:   %s\n", p.ID)
-	fmt.Fprintf(&b, "Created:     %s\n", p.CreatedAt.UTC().Format(time.RFC3339))
+	fmt.Fprintln(&b)
+	fmt.Fprintln(&b, "## Reminder")
+	fmt.Fprintf(&b, "Your first action is: **%s**\n", p.NextStep)
+	if len(locked) > 0 {
+		fmt.Fprintln(&b, "Locked decisions above must be respected.")
+	}
+
+	fmt.Fprintln(&b)
+	fmt.Fprintf(&b, "Packet:    %s (spec v%s)\n", p.ID, p.LTMVersion)
+	if p.ParentID != "" {
+		fmt.Fprintf(&b, "Continues: %s\n", p.ParentID)
+	}
+	fmt.Fprintf(&b, "Created:   %s\n", p.CreatedAt.UTC().Format(time.RFC3339))
 	if p.Provenance != nil {
 		parts := []string{}
 		if p.Provenance.AuthorHuman != "" {
@@ -220,13 +288,38 @@ func renderResumeBlock(p *packet.Packet) string {
 			parts = append(parts, "via "+p.Provenance.AuthorModel)
 		}
 		if len(parts) > 0 {
-			fmt.Fprintf(&b, "Author:      %s\n", strings.Join(parts, " "))
+			fmt.Fprintf(&b, "Author:    %s\n", strings.Join(parts, " "))
 		}
 	}
 	if len(p.Tags) > 0 {
-		fmt.Fprintf(&b, "Tags:        %s\n", strings.Join(p.Tags, ", "))
+		fmt.Fprintf(&b, "Tags:      %s\n", strings.Join(p.Tags, ", "))
 	}
 	return b.String()
+}
+
+func splitDecisions(ds []packet.Decision) (locked, tentative []packet.Decision) {
+	for _, d := range ds {
+		if d.Locked {
+			locked = append(locked, d)
+		} else {
+			tentative = append(tentative, d)
+		}
+	}
+	return
+}
+
+func filterAttempts(as []packet.Attempt, outcomes ...string) []packet.Attempt {
+	set := make(map[string]struct{}, len(outcomes))
+	for _, o := range outcomes {
+		set[o] = struct{}{}
+	}
+	var out []packet.Attempt
+	for _, a := range as {
+		if _, ok := set[a.Outcome]; ok {
+			out = append(out, a)
+		}
+	}
+	return out
 }
 
 // ---- helpers ----

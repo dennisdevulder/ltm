@@ -1,12 +1,25 @@
-# Core Memory Packet â€” Specification v0.1
+# Core Memory Packet â€” Specification v0.2
 
-**Status:** Draft. Breaking changes expected before v1.0.
+**Status:** Draft. Breaking changes still possible before v1.0.
+**Previous versions:** [v0.1](./docs/spec/v0.1.md) (archived, remains valid against v0.1 servers).
 
 ## Purpose
 
-A Core Memory Packet is a portable, model-agnostic record of **what a work session was doing and why**, written so a different machine, agent, or model can resume the work without being re-briefed.
+A Core Memory Packet (CMP) is a portable, model-agnostic record of **what a work session was doing and why**, written so a different machine, agent, or model can resume the work without being re-briefed.
 
 It transfers **intent**, not configuration.
+
+## What's new in v0.2
+
+All additions over v0.1 are **optional**. Existing v0.1 packets remain valid on v0.1 servers; they are *not* accepted on v0.2 servers unless they declare `ltm_version: "0.2"` and conform to the v0.2 schema (which is a superset).
+
+- `parent_id` â€” packets chain into a single-parent DAG.
+- `success_criteria` â€” observable done-conditions.
+- `decisions[].consequences` â€” ADR-style "what this decision precludes."
+- `methods[]` â€” reusable procedural knowledge (named recipes).
+- `attempts[].confidence` â€” author's confidence that an attempt's outcome is final.
+
+Each addition is motivated and cited in [`RESEARCH.md`](./RESEARCH.md).
 
 ## Non-goals
 
@@ -26,8 +39,9 @@ A packet is a single JSON document. Minimum useful size: ~500 bytes. Typical: 2â
 
 ```json
 {
-  "ltm_version": "0.1",
+  "ltm_version": "0.2",
   "id": "01J9X8K2QZ7N4M0WXYZV3R8ABC",
+  "parent_id": "01J9X3K2QZ7N4M0WXYZV3R8Z01",
   "created_at": "2026-04-21T10:30:00Z",
 
   "project": {
@@ -36,6 +50,10 @@ A packet is a single JSON document. Minimum useful size: ~500 bytes. Typical: 2â
   },
 
   "goal": "Get GPU video encoding working for replay captures.",
+  "success_criteria": [
+    "A 10-second gameplay clip renders to H.264 in under 2s on the target box.",
+    "Frame drops stay below 1% of captured frames at 60 fps."
+  ],
 
   "constraints": [
     "Must run on Linux; development target is Fedora with bleeding-edge mesa.",
@@ -46,7 +64,16 @@ A packet is a single JSON document. Minimum useful size: ~500 bytes. Typical: 2â
     {
       "what": "Abandoned macOS as a development target for this feature.",
       "why": "MoltenVK does not expose VK_KHR_video_encode_queue; the extension is required.",
+      "consequences": "Mac cannot be used for testing this feature end-to-end. Contributors must have Linux access or CI.",
       "locked": true
+    }
+  ],
+
+  "methods": [
+    {
+      "name": "fedora-mesa-bleeding-edge",
+      "when_applicable": "Need a Linux host with Vulkan video extensions for testing.",
+      "how": "Fedora 40 + mesa-freeworld from RPM Fusion; verify with vulkaninfo | grep VK_KHR_video_encode_queue."
     }
   ],
 
@@ -54,7 +81,8 @@ A packet is a single JSON document. Minimum useful size: ~500 bytes. Typical: 2â
     {
       "tried": "Initialize VK_KHR_video_encode_h264 on MoltenVK 1.2.x.",
       "outcome": "failed",
-      "learned": "Extension absent at runtime across all MoltenVK versions tested; not a version problem."
+      "learned": "Extension absent at runtime across all MoltenVK versions tested; not a version problem.",
+      "confidence": "high"
     }
   ],
 
@@ -81,7 +109,7 @@ A packet is a single JSON document. Minimum useful size: ~500 bytes. Typical: 2â
 
 | Field | Type | Notes |
 |---|---|---|
-| `ltm_version` | string | Spec version this packet targets. |
+| `ltm_version` | string | Must be `"0.2"` for a v0.2 packet. |
 | `id` | string | ULID or UUID. Opaque. |
 | `created_at` | string | RFC 3339 UTC. |
 | `goal` | string | One sentence. What are we trying to do? Not what we're doing *right now* â€” the enduring objective. |
@@ -91,10 +119,13 @@ A packet is a single JSON document. Minimum useful size: ~500 bytes. Typical: 2â
 
 | Field | Type | Notes |
 |---|---|---|
+| `parent_id` | string | **v0.2 new.** Previous packet in the same work thread. Single-parent DAG. |
 | `project` | object | `name` (short identifier) and `ref` (optional repo or URL â€” no local paths). |
+| `success_criteria` | string[] | **v0.2 new.** Observable conditions that signal the work is done. |
 | `constraints` | string[] | Hard limits that shape any solution. |
-| `decisions` | object[] | Locked-in choices the next session should not re-litigate. Each has `what`, `why`, `locked` (bool). |
-| `attempts` | object[] | Things that were tried. Each has `tried`, `outcome` (`succeeded` \| `failed` \| `partial`), `learned`. |
+| `decisions` | object[] | Locked-in choices the next session should not re-litigate. Each has `what`, `why`, `consequences` (v0.2), `locked` (bool). |
+| `methods` | object[] | **v0.2 new.** Reusable procedural knowledge. Each has `name`, `when_applicable`, `how`. `name` is lowercase, hyphenated, stable across packets in a chain. |
+| `attempts` | object[] | Things that were tried. Each has `tried`, `outcome` (`succeeded` \| `failed` \| `partial`), `learned`, and optionally `confidence` (v0.2). |
 | `open_questions` | string[] | Things genuinely undecided. |
 | `tags` | string[] | Lowercase, hyphenated. For search/filter. |
 
@@ -110,29 +141,41 @@ A packet is a single JSON document. Minimum useful size: ~500 bytes. Typical: 2â
 ## Writing rules
 
 1. **One sentence per field** unless the field is an array. If you need a paragraph, you're writing a transcript.
-2. **No code.** Reference files or symbols by name if needed (`ApiClient.sendEventToApi`). Never paste bodies.
+2. **No code.** Reference files or symbols by name if needed (`ApiClient.sendEventToApi`). Never paste bodies. Exception: a `method.how` may contain a short command line, like `brew install ltm`.
 3. **No local state.** No paths beginning with `/Users/`, `/home/`, `C:\`. No port numbers. No local URLs.
 4. **No secrets.** Packets are expected to travel. Writers MUST redact before emitting.
 5. **`decisions` lock the past; `open_questions` open the future.** If a choice could be revisited, it's an open question, not a decision.
 6. **`attempts.learned` is the payload.** Most of a packet's value lives here. An attempt without a `learned` is noise.
+7. **`methods` describe *when-then*, not history.** A `method` is generalizable; an `attempt` is a specific event. If a recipe only applies once, it's an attempt, not a method.
+8. **`success_criteria` are observable.** They must be things a receiving agent can check without asking. "Feels right" is not a success criterion; "`/healthz` returns 200" is.
+9. **`consequences` answer: if you revisit this decision, what breaks?** If a decision has no downstream effect, you don't need to write a consequences field â€” but locked decisions almost always do.
+10. **`parent_id` should point to a packet the author has actually read.** Don't pretend at lineage.
 
 ## Conformance
 
-A conforming packet:
+A conforming v0.2 packet:
 
-- Validates against the schema (see `schema/core-memory.v0.1.json` â€” pending).
-- Passes the redaction pre-flight: no absolute paths, no strings matching common secret patterns, no strings longer than 1 KB.
-- Is idempotent: emitting the same session state twice produces byte-identical packets (modulo `id` and `created_at`).
+- Declares `ltm_version: "0.2"`.
+- Validates against [`schema/core-memory.v0.2.json`](./schema/core-memory.v0.2.json).
+- Passes the redaction pre-flight: no absolute paths, no strings matching common secret patterns, no strings longer than their field's `maxLength` (1024 chars for most; 2048 for `method.how`).
+- Is idempotent: re-emitting the same session state produces byte-identical packets (modulo `id` and `created_at`).
 
 Non-conforming packets MAY be accepted by a server in lenient mode but MUST be flagged.
 
 ## Versioning
 
-Major version bumps are breaking. Minor versions add optional fields only. `ltm_version` is required on every packet.
+- Major version bumps are breaking.
+- Minor versions add optional fields only.
+- `ltm_version` is required on every packet and must match one of the versions the receiving server knows how to validate.
 
-## Open questions for the spec itself
+Servers SHOULD implement every minor version they claim support for. A v0.2 server that receives a v0.1 packet should accept it if it retains the v0.1 schema (the reference Go server does).
 
-- Should packets chain? (A packet references the previous packet in the same work thread.)
-- Signing â€” detached signatures for federation, or inline?
-- How much structure to impose on `attempts` vs leaving it free-form?
-- Do we need a separate `people` field for multi-human collaboration, or is `author_human` enough?
+## Open questions for v0.3
+
+1. Should `parent_id` widen to accept multiple parents (merging two work threads)?
+2. Should `methods` carry forward automatically from the parent packet in a chain, or stay explicit? (v0.2: explicit.)
+3. Should `confidence` accept a float `[0, 1]` in addition to `low|medium|high`? (v0.2: enum only.)
+4. Do we need `supersedes` / `invalidates` fields to retract a prior decision cleanly? ADR practitioners split between editing in place and `status: superseded`.
+5. Do we want signing (detached ed25519 or inline `sig`) for federated deployments?
+
+See [`RESEARCH.md`](./RESEARCH.md) for the literature motivating every v0.2 decision.
