@@ -1,0 +1,43 @@
+{
+  "ltm_version": "0.1",
+  "id": "01JDMX1V7TBNK6ZQG3F8C2W4YE",
+  "created_at": "2026-04-18T16:02:41Z",
+  "project": {
+    "name": "osrs-tracker-plugin",
+    "ref": "github.com/dennisdevulder/osrs-tracker-plugin"
+  },
+  "goal": "Get GPU-accelerated H.264 video encoding working for Vulkan replay captures.",
+  "constraints": [
+    "Deploy target is Linux (Fedora); Mac is dev-only for this feature.",
+    "Encoding must be hardware-accelerated — software fallback is too slow for 60fps capture."
+  ],
+  "decisions": [
+    {
+      "what": "Abandon macOS as a development target for this feature.",
+      "why": "MoltenVK does not expose VK_KHR_video_encode_queue, and the extension is required for VK_KHR_video_encode_h264.",
+      "locked": true
+    }
+  ],
+  "attempts": [
+    {
+      "tried": "Initialize VK_KHR_video_encode_h264 on MoltenVK 1.2.x on macOS.",
+      "outcome": "failed",
+      "learned": "Extension absent at runtime across every MoltenVK version tested (1.1 through 1.2.10); not a version/config problem, the backend simply does not implement it."
+    },
+    {
+      "tried": "Patch MoltenVK headers to pretend the extension is present.",
+      "outcome": "failed",
+      "learned": "Dispatch stubs resolve but the Metal backend has no corresponding encoder object, so vkCmdEncodeVideoKHR returns VK_ERROR_FEATURE_NOT_PRESENT."
+    }
+  ],
+  "open_questions": [
+    "What is the fallback for AMD GPUs on current mesa — is VAAPI via a second pipeline acceptable?"
+  ],
+  "next_step": "Move this feature's dev loop to Fedora 40 + mesa 25.x; confirm VK_KHR_video_encode_queue is exposed and bring up a minimal encoder on that machine.",
+  "tags": ["gpu", "vulkan", "video-encoding"],
+  "provenance": {
+    "author_model": "claude-opus-4-7",
+    "author_human": "dennisdevulder",
+    "confidence": "high"
+  }
+}
