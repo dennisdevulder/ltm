@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ltm — portable understanding for AI work sessions</title>
+  <meta name="description" content="Ship intent between machines and models — not configuration. A one-file protocol, self-hosted, model-agnostic, open.">
+  <meta property="og:title" content="ltm — portable understanding for AI work sessions">
+  <meta property="og:description" content="Ship intent between machines and models — not configuration.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://ltm-cli.dev">
+  <meta name="theme-color" content="#faf9f5">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='80' font-family='ui-monospace,monospace'%3E▚%3C/text%3E%3C/svg%3E">
+  <style>
+    :root {
+      --bg: #faf9f5;
+      --ink: #1a1916;
+      --muted: #6d6b64;
+      --line: #d8d4c7;
+      --accent: #c14a1d;
+      --code-bg: #f1eee4;
+      --sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 16px;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; text-underline-offset: 3px; }
+    code, pre, .mono { font-family: var(--mono); font-size: 0.92em; }
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 1rem 1.25rem;
+      overflow-x: auto;
+      line-height: 1.55;
+      font-size: 0.9em;
+    }
+    p code, li code, td code, dd code {
+      background: var(--code-bg);
+      padding: 0.05em 0.35em;
+      border-radius: 3px;
+      border: 1px solid var(--line);
+    }
+    hr {
+      border: 0;
+      border-top: 1px solid var(--line);
+      margin: 4rem 0;
+    }
+
+    /* layout */
+    .container {
+      max-width: 880px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 5rem;
+    }
+
+    /* top bar */
+    header.top {
+      border-bottom: 1px solid var(--line);
+      font-family: var(--mono);
+      font-size: 0.78em;
+      color: var(--muted);
+    }
+    header.top .row {
+      max-width: 880px;
+      margin: 0 auto;
+      padding: 0.85rem 1.5rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem 2rem;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header.top .meta-strip { font-style: italic; }
+    header.top nav { display: flex; gap: 1.5rem; }
+    header.top nav a { color: var(--muted); }
+    header.top .brand { color: var(--ink); font-weight: 600; letter-spacing: 0.02em; }
+    header.top .brand .glyph { color: var(--accent); margin-right: 0.35rem; }
+
+    /* hero */
+    .hero .doc-id {
+      font-family: var(--mono);
+      font-size: 0.78em;
+      color: var(--muted);
+      margin: 2rem 0 1.5rem;
+    }
+    .hero h1 {
+      font-size: clamp(2rem, 6vw, 3.6rem);
+      line-height: 1.05;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      margin-bottom: 1.25rem;
+    }
+    .hero .lede {
+      font-size: 1.15rem;
+      color: var(--muted);
+      max-width: 62ch;
+      margin-bottom: 2.5rem;
+    }
+
+    dl.meta {
+      display: grid;
+      grid-template-columns: 9rem 1fr;
+      font-family: var(--mono);
+      font-size: 0.88em;
+      border-top: 1px solid var(--line);
+      margin: 2rem 0 2.5rem;
+    }
+    dl.meta dt, dl.meta dd {
+      padding: 0.6rem 0;
+      border-bottom: 1px solid var(--line);
+    }
+    dl.meta dt {
+      color: var(--muted);
+      font-weight: normal;
+    }
+
+    .hero .install {
+      margin: 0 0 0.75rem;
+    }
+    .hero .install-note {
+      font-family: var(--mono);
+      font-size: 0.82em;
+      color: var(--muted);
+      margin-bottom: 2rem;
+    }
+
+    .ctas {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      font-family: var(--mono);
+      font-size: 0.9em;
+      margin-top: 1.5rem;
+    }
+    .ctas a {
+      display: inline-block;
+      padding: 0.6rem 1rem;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      color: var(--ink);
+    }
+    .ctas a.primary {
+      background: var(--ink);
+      color: var(--bg);
+      border-color: var(--ink);
+    }
+    .ctas a:hover { text-decoration: none; border-color: var(--ink); }
+
+    /* sections */
+    section.doc {
+      margin-top: 4rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--line);
+    }
+    section.doc .section-number {
+      font-family: var(--mono);
+      font-size: 0.8em;
+      color: var(--muted);
+      margin-bottom: 0.4rem;
+    }
+    section.doc h2 {
+      font-size: 1.75rem;
+      line-height: 1.15;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      margin-bottom: 0.3rem;
+    }
+    section.doc h3 {
+      font-size: 1.1rem;
+      font-weight: 400;
+      color: var(--muted);
+      margin-bottom: 1.5rem;
+    }
+    section.doc p { margin-bottom: 1rem; max-width: 68ch; }
+    section.doc p:last-child { margin-bottom: 0; }
+    section.doc strong { font-weight: 600; }
+
+    /* protocol table */
+    table.verbs {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.5rem 0 1rem;
+      font-size: 0.95em;
+    }
+    table.verbs th, table.verbs td {
+      text-align: left;
+      padding: 0.75rem 1rem 0.75rem 0;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+    table.verbs th {
+      font-family: var(--mono);
+      font-size: 0.8em;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: normal;
+    }
+    table.verbs td:first-child { font-family: var(--mono); font-weight: 600; width: 6rem; }
+    table.verbs td:last-child { font-family: var(--mono); font-size: 0.85em; color: var(--muted); }
+
+    /* principles */
+    .principles {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+      margin-top: 1.5rem;
+    }
+    .principle {
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 1.25rem 1.35rem;
+      background: color-mix(in srgb, var(--code-bg) 50%, var(--bg));
+    }
+    .principle .tag {
+      font-family: var(--mono);
+      font-size: 0.75em;
+      color: var(--accent);
+      letter-spacing: 0.05em;
+      display: block;
+      margin-bottom: 0.5rem;
+    }
+    .principle h4 { font-size: 1.05rem; font-weight: 600; margin-bottom: 0.5rem; }
+    .principle p { font-size: 0.95em; color: var(--muted); margin: 0; }
+
+    /* packet */
+    figure.packet {
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: var(--code-bg);
+      margin: 1.5rem 0;
+      overflow: hidden;
+    }
+    figure.packet figcaption {
+      font-family: var(--mono);
+      font-size: 0.8em;
+      color: var(--muted);
+      padding: 0.65rem 1rem;
+      border-bottom: 1px solid var(--line);
+      background: color-mix(in srgb, var(--bg) 70%, var(--code-bg));
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    figure.packet pre {
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      margin: 0;
+    }
+
+    dl.facts {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      margin: 2rem 0 1rem;
+      padding: 1.25rem;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      font-family: var(--mono);
+      font-size: 0.82em;
+    }
+    dl.facts > div dt {
+      color: var(--muted);
+      margin-bottom: 0.3rem;
+      letter-spacing: 0.05em;
+    }
+    dl.facts > div dd { color: var(--ink); }
+
+    /* scope */
+    .scope-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      margin-top: 1.5rem;
+    }
+    .scope-grid > div h4 {
+      font-family: var(--mono);
+      font-size: 0.85em;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      margin-bottom: 1rem;
+    }
+    .scope-grid ul { list-style: none; }
+    .scope-grid li { padding: 0.5rem 0; border-bottom: 1px solid var(--line); font-size: 0.97em; }
+    .scope-grid li:first-child { border-top: 1px solid var(--line); }
+    .scope-grid .in li::before { content: '+  '; color: var(--accent); font-family: var(--mono); }
+    .scope-grid .out li::before { content: '−  '; color: var(--muted); font-family: var(--mono); }
+    @media (max-width: 640px) {
+      .scope-grid { grid-template-columns: 1fr; gap: 1rem; }
+    }
+
+    /* footer */
+    footer.bottom {
+      border-top: 1px solid var(--line);
+      margin-top: 5rem;
+      font-family: var(--mono);
+      font-size: 0.78em;
+      color: var(--muted);
+    }
+    footer.bottom .row {
+      max-width: 880px;
+      margin: 0 auto;
+      padding: 1.5rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem 2rem;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+    footer.bottom nav { display: flex; gap: 1.25rem; }
+    footer.bottom .glyph { color: var(--accent); margin-right: 0.25rem; }
+
+    @media (max-width: 640px) {
+      dl.meta { grid-template-columns: 7rem 1fr; font-size: 0.82em; }
+      .container { padding: 1rem 1.25rem 3rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="top">
+  <div class="row">
+    <div class="brand"><span class="glyph">▚</span>ltm <span style="color:var(--muted)">://</span></div>
+    <nav>
+      <a href="#spec">§ spec</a>
+      <a href="#install">§ install</a>
+      <a href="https://github.com/dennisdevulder/ltm">github ↗</a>
+    </nav>
+    <div class="meta-strip">Draft specification · v0.1 · comments welcome in <a href="https://github.com/dennisdevulder/ltm/discussions" style="color:inherit">github discussions</a></div>
+  </div>
+</header>
+
+<main class="container">
+
+  <section class="hero">
+    <div class="doc-id">LTM-SPEC-0001 · 2026-04-21 · draft</div>
+    <h1>Portable understanding<br>for AI work sessions.</h1>
+    <p class="lede">
+      Ship intent between machines and models — not configuration.
+      A one-file spec. A single Go binary. Self-hosted. Model-agnostic. Open.
+    </p>
+
+    <dl class="meta">
+      <dt>Protocol</dt><dd>ltm — long-term memory for AI sessions</dd>
+      <dt>Version</dt><dd>0.1 (draft)</dd>
+      <dt>Status</dt><dd>draft — call for comment</dd>
+      <dt>Editor</dt><dd>Dennis de Vulder</dd>
+      <dt>Reference</dt><dd><a href="https://github.com/dennisdevulder/ltm">github.com/dennisdevulder/ltm</a></dd>
+      <dt>License</dt><dd>Apache-2.0</dd>
+    </dl>
+
+    <pre class="install"><code>$ brew install dennisdevulder/ltm/ltm</code></pre>
+    <div class="install-note"># ~180 lines of spec. ~1,900 lines of Go. That is the whole thing.</div>
+
+    <nav class="ctas">
+      <a href="#spec" class="primary">Read the specification</a>
+      <a href="https://github.com/dennisdevulder/ltm">Reference implementation ↗</a>
+    </nav>
+  </section>
+
+  <section class="doc" id="abstract">
+    <div class="section-number">§ 1</div>
+    <h2>Abstract</h2>
+    <h3>Why this exists.</h3>
+    <p>
+      You hit a wall on your Mac. The GPU story doesn't work. You pivot to a Fedora box,
+      spin up a new agent, and spend an hour re-explaining what you've tried, what you
+      ruled out, and why. The model makes the same mistakes you already solved for.
+    </p>
+    <p><strong>ltm fixes exactly that. And nothing else.</strong></p>
+  </section>
+
+  <section class="doc" id="spec">
+    <div class="section-number">§ 2</div>
+    <h2>Protocol</h2>
+    <h3>Write, push, pull.</h3>
+    <p>
+      The protocol has three motions: an agent <em>writes</em> a Core Memory Packet at the
+      end of a session, <em>pushes</em> it to any ltm-compatible server, and a new session
+      on any machine <em>pulls</em> it back.
+    </p>
+    <table class="verbs">
+      <thead>
+        <tr><th>verb</th><th>description</th><th>example</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>write</td>
+          <td>Agent emits a Core Memory Packet as JSON.</td>
+          <td><code>echo '{…}' | ltm push -</code></td>
+        </tr>
+        <tr>
+          <td>push</td>
+          <td>Packet is uploaded to your ltm server.</td>
+          <td><code>ltm push packet.json</code></td>
+        </tr>
+        <tr>
+          <td>pull</td>
+          <td>A new session fetches it by ID.</td>
+          <td><code>ltm pull 01JDMB4W…</code></td>
+        </tr>
+      </tbody>
+    </table>
+    <p>
+      Transport is HTTPS with bearer-token auth. Storage is a single SQLite file.
+      Packet IDs are ULIDs. Nothing exotic; nothing reinvented.
+    </p>
+  </section>
+
+  <section class="doc" id="principles">
+    <div class="section-number">§ 3</div>
+    <h2>Design principles</h2>
+    <h3>Four invariants.</h3>
+    <div class="principles">
+      <div class="principle">
+        <span class="tag">REQ-01</span>
+        <h4>Intent, not configuration</h4>
+        <p>Your CLAUDE.md, skills, and tool setup stay yours. Only the understanding of what you are doing travels.</p>
+      </div>
+      <div class="principle">
+        <span class="tag">REQ-02</span>
+        <h4>Self-host or nothing</h4>
+        <p>No enterprise tier. No hosted-only features. If it does not run on a $5 VPS, it is not done.</p>
+      </div>
+      <div class="principle">
+        <span class="tag">REQ-03</span>
+        <h4>Model-agnostic</h4>
+        <p>A packet written by Claude is readable by GPT, Gemini, or the next thing. No vendor fields.</p>
+      </div>
+      <div class="principle">
+        <span class="tag">REQ-04</span>
+        <h4>Spec first</h4>
+        <p>The protocol is public and versioned. The CLI and server are reference implementations — not the whole product.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="doc" id="packet">
+    <div class="section-number">§ 4</div>
+    <h2>Core Memory Packet</h2>
+    <h3>A single JSON object.</h3>
+    <p>Fixed schema, forward-compatible. Every field earns its byte.</p>
+
+    <figure class="packet">
+      <figcaption>
+        <span>01JDMB4W1YNJ5TN4R9G8A7Q6ZH.json</span>
+        <span>~1.8 KB · v0.1</span>
+      </figcaption>
+<pre><code>{
+  "ltm_version": "0.1",
+  "id": "01JDMB4W1YNJ5TN4R9G8A7Q6ZH",
+  "created_at": "2026-04-21T10:30:00Z",
+  "project": {
+    "name": "osrs-tracker-plugin",
+    "ref": "github.com/dennisdevulder/osrs-tracker-plugin"
+  },
+  "goal": "Get GPU video encoding working for replay captures.",
+  "constraints": [
+    "Must run on Linux; target is Fedora with bleeding-edge mesa.",
+    "Encoding must be hardware-accelerated — software fallback is too slow."
+  ],
+  "decisions": [
+    {
+      "what": "Abandoned macOS as a development target for this feature.",
+      "why": "MoltenVK does not expose VK_KHR_video_encode_queue.",
+      "locked": true
+    }
+  ],
+  "attempts": [
+    {
+      "tried": "Initialize VK_KHR_video_encode_h264 on MoltenVK 1.2.x.",
+      "outcome": "failed",
+      "learned": "Extension absent at runtime across all versions tested."
+    }
+  ],
+  "open_questions": [
+    "What's the fallback path for AMD GPUs on current mesa?"
+  ],
+  "next_step": "Bring up VK_KHR_video_encode_queue on Fedora mesa 25.x.",
+  "tags": ["gpu", "vulkan", "video-encoding"],
+  "provenance": {
+    "author_model": "claude-opus-4-7",
+    "author_human": "dennisdevulder",
+    "confidence": "high"
+  }
+}</code></pre>
+    </figure>
+
+    <dl class="facts">
+      <div><dt>SIZE</dt><dd>≤ 32 KB hard cap<br>typical 2–10 KB</dd></div>
+      <div><dt>FIELDS</dt><dd>5 required<br>6 recommended</dd></div>
+      <div><dt>OMITS</dt><dd>paths · secrets<br>transcripts · configs</dd></div>
+      <div><dt>VALIDATION</dt><dd>JSON Schema<br>redaction pre-flight</dd></div>
+    </dl>
+
+    <p><a href="https://github.com/dennisdevulder/ltm/blob/main/SPEC.md">full specification →</a></p>
+  </section>
+
+  <section class="doc" id="scope">
+    <div class="section-number">§ 5</div>
+    <h2>Scope</h2>
+    <h3>In scope / out of scope.</h3>
+    <div class="scope-grid">
+      <div class="in">
+        <h4>IN SCOPE</h4>
+        <ul>
+          <li>Developers using AI agents across multiple machines</li>
+          <li>Small teams sharing context without sharing setup</li>
+          <li>Self-hosters who want their memory on their own box</li>
+        </ul>
+      </div>
+      <div class="out">
+        <h4>OUT OF SCOPE</h4>
+        <ul>
+          <li>People looking for a managed memory SaaS</li>
+          <li>Teams that want a single-vendor Claude/Cursor/Codex stack</li>
+          <li>Anything that needs enterprise SSO on day one</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="doc" id="install">
+    <div class="section-number">§ 6</div>
+    <h2>Reference implementation</h2>
+    <h3>Install the CLI.</h3>
+<pre><code>$ brew install dennisdevulder/ltm/ltm
+$ ltm auth https://your-server.dev &lt;token&gt;
+$ ltm pull 01JDMB4W1YNJ5TN4R9G8A7Q6ZH
+# session restored. your agent takes it from here.</code></pre>
+    <p>Or one-line install:</p>
+<pre><code>$ curl -fsSL https://ltm-cli.dev/install | sh</code></pre>
+    <p>To self-host the server on any VPS:</p>
+<pre><code>$ ltm server init --db ~/.local/share/ltm/ltm.db
+$ ltm server --addr :8080
+# copy the root token the init step prints, then:
+#   ltm auth http://your-host:8080 &lt;token&gt;</code></pre>
+  </section>
+
+</main>
+
+<footer class="bottom">
+  <div class="row">
+    <div><span class="glyph">▚</span>ltm — long-term memory protocol</div>
+    <div>Apache-2.0 · no trackers · no cookies · static site</div>
+    <div>LTM-SPEC-0001 · 2026-04-21</div>
+    <nav>
+      <a href="https://github.com/dennisdevulder/ltm">github</a>
+      <a href="https://github.com/dennisdevulder/ltm/blob/main/SPEC.md">spec</a>
+      <a href="https://github.com/dennisdevulder/ltm/discussions">discussions</a>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>
