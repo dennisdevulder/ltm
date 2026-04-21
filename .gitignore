@@ -7,3 +7,10 @@ build/
 target/
 .env
 .env.*
+
+# Go
+/ltm
+/bin/
+*.db
+*.sqlite
+*.sqlite3

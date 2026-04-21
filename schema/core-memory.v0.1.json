@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ltm-cli.dev/schema/core-memory.v0.1.json",
+  "title": "Core Memory Packet",
+  "description": "A portable, model-agnostic record of work-session intent.",
+  "type": "object",
+  "required": ["ltm_version", "id", "created_at", "goal", "next_step"],
+  "additionalProperties": false,
+  "properties": {
+    "ltm_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+$"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 64
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "maxLength": 128 },
+        "ref":  { "type": "string", "maxLength": 256 }
+      }
+    },
+    "goal": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "constraints": {
+      "type": "array",
+      "items": { "type": "string", "maxLength": 1024 },
+      "maxItems": 32
+    },
+    "decisions": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "required": ["what", "why"],
+        "additionalProperties": false,
+        "properties": {
+          "what":   { "type": "string", "maxLength": 1024 },
+          "why":    { "type": "string", "maxLength": 1024 },
+          "locked": { "type": "boolean" }
+        }
+      }
+    },
+    "attempts": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "required": ["tried", "outcome"],
+        "additionalProperties": false,
+        "properties": {
+          "tried":   { "type": "string", "maxLength": 1024 },
+          "outcome": { "type": "string", "enum": ["succeeded", "failed", "partial"] },
+          "learned": { "type": "string", "maxLength": 1024 }
+        }
+      }
+    },
+    "open_questions": {
+      "type": "array",
+      "items": { "type": "string", "maxLength": 1024 },
+      "maxItems": 32
+    },
+    "next_step": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9-]{0,31}$"
+      },
+      "maxItems": 16
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "author_model":  { "type": "string", "maxLength": 128 },
+        "author_human":  { "type": "string", "maxLength": 128 },
+        "source_hash":   { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "confidence":    { "type": "string", "enum": ["low", "medium", "high"] }
+      }
+    }
+  }
+}
