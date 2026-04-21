@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # Install script for ltm — portable understanding for AI work sessions.
 #
 # Usage:
@@ -7,13 +7,15 @@
 # Or pin a version:
 #   curl -fsSL https://ltm-cli.dev/install | LTM_VERSION=v0.1.0 sh
 #
-# Install to a custom directory:
-#   curl -fsSL https://ltm-cli.dev/install | LTM_INSTALL_DIR=$HOME/.local/bin sh
+# Install system-wide (requires sudo) — default is user-local (~/.local/bin):
+#   curl -fsSL https://ltm-cli.dev/install | LTM_INSTALL_DIR=/usr/local/bin sh
 
-set -euo pipefail
+set -eu
 
 REPO="dennisdevulder/ltm"
-INSTALL_DIR="${LTM_INSTALL_DIR:-/usr/local/bin}"
+# Default to a user-local path so `curl | sh` doesn't need sudo. Users who want
+# a system-wide install can opt in explicitly via LTM_INSTALL_DIR.
+INSTALL_DIR="${LTM_INSTALL_DIR:-$HOME/.local/bin}"
 
 log()  { printf '==> %s\n' "$*"; }
 fail() { printf 'error: %s\n' "$*" >&2; exit 1; }
@@ -91,20 +93,31 @@ fi
 
 # ---- verify & path check ----
 
-if command -v ltm >/dev/null 2>&1; then
-  log "installed: $(ltm --version)"
-else
-  log "installed to $INSTALL_DIR/ltm"
-  case ":$PATH:" in
-    *":$INSTALL_DIR:"*) ;;
-    *)
-      printf '\n'
-      printf 'note: %s is not on your PATH.\n' "$INSTALL_DIR"
-      printf 'add this to your shell rc:\n\n'
-      printf '  export PATH="%s:$PATH"\n\n' "$INSTALL_DIR"
-      ;;
-  esac
+# Always report the newly installed binary, not whatever `ltm` in PATH resolves to —
+# users commonly have an older ltm elsewhere (e.g. /usr/local/bin from a prior
+# install, or $GOPATH/bin from `go build`) that would otherwise shadow the new one.
+log "installed: $("$INSTALL_DIR/ltm" --version)"
+
+# Warn if the shell will resolve `ltm` to a different binary than the one we just installed.
+active=$(command -v ltm 2>/dev/null || true)
+if [ -n "$active" ] && [ "$active" != "$INSTALL_DIR/ltm" ]; then
+  printf '\n'
+  printf 'note: "ltm" in your PATH still resolves to %s.\n' "$active"
+  printf 'remove that binary or reorder PATH so %s comes first.\n' "$INSTALL_DIR"
 fi
+
+# Warn if the install dir isn't in PATH at all.
+case ":$PATH:" in
+  *":$INSTALL_DIR:"*) ;;
+  *)
+    printf '\n'
+    printf 'note: %s is not on your PATH.\n' "$INSTALL_DIR"
+    printf 'add this to your shell rc:\n\n'
+    # $PATH is intentionally literal — the user's shell expands it when they source the rc.
+    # shellcheck disable=SC2016
+    printf '  export PATH="%s:$PATH"\n\n' "$INSTALL_DIR"
+    ;;
+esac
 
 cat <<'NEXT'
 
