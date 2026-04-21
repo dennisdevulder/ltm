@@ -264,9 +264,9 @@
     </div>
 
     <div class="term">
-        <div class="t-head"><span>sh</span><button class="t-copy" data-copy="brew install dennisdevulder/ltm/ltm">[copy]</button></div>
+        <div class="t-head"><span>sh</span><button class="t-copy" data-copy="curl -fsSL https://ltm-cli.dev/install | sh">[copy]</button></div>
         <pre class="t-body">
-          <div><span class="t-prompt">$ </span>brew install dennisdevulder/ltm/ltm</div>
+          <div><span class="t-prompt">$ </span>curl -fsSL https://ltm-cli.dev/install | sh</div>
           <div class="t-comment"># ~180 lines of spec. ~1,900 lines of Go. that is the whole thing.</div>
         </pre>
       </div>
@@ -451,11 +451,11 @@ per packet</div></div>
     <h2 class="sec-n">§ 6. Reference implementation</h2>
     <h3 class="sec-t">Install the CLI.</h3>
     <div class="term">
-        <div class="t-head"><span>sh · client</span><button class="t-copy" data-copy="brew install dennisdevulder/ltm/ltm
+        <div class="t-head"><span>sh · client</span><button class="t-copy" data-copy="curl -fsSL https://ltm-cli.dev/install | sh
 ltm auth https://your-server.dev &lt;token&gt;
 ltm pull &lt;packet-id&gt;">[copy]</button></div>
         <pre class="t-body">
-          <div><span class="t-prompt">$ </span>brew install dennisdevulder/ltm/ltm</div>
+          <div><span class="t-prompt">$ </span>curl -fsSL https://ltm-cli.dev/install | sh</div>
           <div><span class="t-prompt">$ </span>ltm auth https://your-server.dev &lt;token&gt;</div>
           <div><span class="t-prompt">$ </span>ltm pull &lt;packet-id&gt;</div>
           <div class="t-comment"># session restored. your agent takes it from here.</div>

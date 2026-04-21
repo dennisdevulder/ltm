@@ -27,10 +27,7 @@ Existing "AI memory" tools solve this for a single agent on a single machine. No
 ## Install
 
 ```bash
-# macOS / Linux via Homebrew
-brew install dennisdevulder/ltm/ltm
-
-# Or one-shot install (macOS / Linux, amd64 / arm64)
+# macOS / Linux — amd64 and arm64
 curl -fsSL https://ltm-cli.dev/install | sh
 ```
 
@@ -89,7 +86,6 @@ ltm server issue-token ci
 - OAuth device flow (today: paste-a-token).
 - MCP server (planned — a natural follow-up).
 - Packet chaining, sharing, team spaces, federation.
-- Homebrew formula and pre-built release binaries.
 - A real test suite. (Smoke test works; full coverage is TODO.)
 
 ## Status
