@@ -24,17 +24,23 @@ Existing "AI memory" tools solve this for a single agent on a single machine. No
 4. **Spec first, code second.** The [protocol](./SPEC.md) is the product. Implementations follow.
 5. **Redact aggressively.** Packets are expected to travel between machines, teams, and (eventually) organizations. Secrets and local state never ride along.
 
-## Quickstart
+## Install
 
-Install Go 1.23+ then build from source:
+```bash
+# macOS / Linux via Homebrew
+brew install dennisdevulder/ltm/ltm
+
+# Or one-shot install (macOS / Linux, amd64 / arm64)
+curl -fsSL https://ltm-cli.dev/install | sh
+```
+
+Build from source:
 
 ```bash
 git clone https://github.com/dennisdevulder/ltm
 cd ltm
 go build -o ltm ./cmd/ltm
 ```
-
-Homebrew and pre-built binaries are coming once we tag a release.
 
 ### On your server (VPS, OpenClaw instance, localhost)
 
@@ -92,4 +98,4 @@ Pre-alpha. The spec is drafting — expect breaking changes before `v1.0`. Pin a
 
 ## License
 
-TBD — open-source permissive (likely Apache 2.0).
+[Apache 2.0](./LICENSE)

@@ -14,3 +14,6 @@ target/
 *.db
 *.sqlite
 *.sqlite3
+
+# Local website bundle — managed in a separate source
+landing-page.html

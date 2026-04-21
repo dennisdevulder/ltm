@@ -1,0 +1,79 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: ltm
+    main: ./cmd/ltm
+    binary: ltm
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/dennisdevulder/ltm/internal/cli.Version={{.Version}}
+
+archives:
+  - id: default
+    formats: [tar.gz]
+    name_template: >-
+      ltm_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    files:
+      - README.md
+      - SPEC.md
+      - LICENSE*
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  version_template: "{{ .Tag }}-next"
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - '^chore:'
+      - '^docs:'
+      - '^test:'
+
+release:
+  draft: false
+  prerelease: auto
+  header: |
+    ## ltm {{.Tag}}
+
+    Portable understanding for AI work sessions.
+    Install with `brew install dennisdevulder/ltm/ltm` or:
+
+    ```
+    curl -fsSL https://ltm-cli.dev/install | sh
+    ```
+
+brews:
+  - name: ltm
+    repository:
+      owner: dennisdevulder
+      name: homebrew-ltm
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    homepage: "https://ltm-cli.dev"
+    description: "Portable understanding for AI work sessions."
+    license: "Apache-2.0"
+    directory: Formula
+    commit_author:
+      name: goreleaserbot
+      email: bot@goreleaser.com
+    test: |
+      system "#{bin}/ltm --version"
+    install: |
+      bin.install "ltm"
