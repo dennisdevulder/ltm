@@ -295,14 +295,13 @@
   <!-- ————— 2. Protocol ————— -->
   <section class="sec col" id="spec">
     <h2 class="sec-n">§ 2. Protocol</h2>
-    <h3 class="sec-t">Three verbs. That is the spec.</h3>
+    <h3 class="sec-t">Two verbs. That is the spec.</h3>
     <table class="verbs">
       <thead>
         <tr><th>verb</th><th>description</th><th>example</th></tr>
       </thead>
       <tbody>
-        <tr><td class="verb">write</td><td class="desc">Agent emits a Core Memory Packet at session end.</td><td class="ex">$ ltm write --from .agent/session.json</td></tr>
-        <tr><td class="verb">push</td> <td class="desc">Packet is pushed to any ltm-compatible server.</td>  <td class="ex">$ ltm push 01JDMB4W1YNJ…</td></tr>
+        <tr><td class="verb">push</td> <td class="desc">Agent emits a Core Memory Packet and pushes it to any ltm-compatible server.</td>  <td class="ex">$ ltm push packet.json <span style="color:var(--dimmer)">(or cat … | ltm push -)</span></td></tr>
         <tr><td class="verb">pull</td> <td class="desc">A new session on any machine pulls it back.</td>    <td class="ex">$ ltm pull 01JDMB4W1YNJ…</td></tr>
       </tbody>
     </table>
