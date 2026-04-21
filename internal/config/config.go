@@ -159,9 +159,16 @@ func (c *Config) Set(key, value string) error {
 	return nil
 }
 
-// Unset zeroes a key.
+// Unset zeroes a key. Works for every supported field kind, unlike routing
+// through Set("") which only accepts empty strings for string-typed fields.
 func (c *Config) Unset(key string) error {
-	return c.Set(key, "")
+	field, ok := keyToField[strings.ToLower(key)]
+	if !ok {
+		return fmt.Errorf("unknown config key %q. try one of: %s", key, strings.Join(Keys(), ", "))
+	}
+	v := reflect.ValueOf(c).Elem().FieldByName(field)
+	v.SetZero()
+	return nil
 }
 
 // All returns every key=value pair in a stable order.

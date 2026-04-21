@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // HashToken returns the hex-encoded sha256 of a token.
@@ -55,6 +56,9 @@ func SaveToken(token string) error {
 }
 
 // LoadToken reads the credentials file, if present.
+// Leading and trailing whitespace (spaces, tabs, CR/LF) are trimmed so that
+// tokens pasted through editors or shells don't silently cause auth failures.
+// Real tokens never contain whitespace, so this is always safe.
 func LoadToken() (string, error) {
 	path, err := CredentialsPath()
 	if err != nil {
@@ -64,11 +68,7 @@ func LoadToken() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	tok := string(b)
-	// trim trailing whitespace
-	for len(tok) > 0 && (tok[len(tok)-1] == '\n' || tok[len(tok)-1] == '\r' || tok[len(tok)-1] == ' ') {
-		tok = tok[:len(tok)-1]
-	}
+	tok := strings.Trim(string(b), " \t\r\n")
 	if tok == "" {
 		return "", fmt.Errorf("empty credentials file")
 	}

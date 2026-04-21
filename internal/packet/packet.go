@@ -123,14 +123,29 @@ func (p *Packet) Encode() ([]byte, error) {
 
 // ---- redaction ----
 
-var (
-	absPathUnix = regexp.MustCompile(`(?m)(?:^|[\s"'=:])(/(?:Users|home|opt|var|etc|root)/[A-Za-z0-9._/\-]+)`)
-	absPathWin  = regexp.MustCompile(`[A-Za-z]:\\\\[A-Za-z0-9 _.\\\-]+`)
-	awsKey      = regexp.MustCompile(`AKIA[0-9A-Z]{16}`)
-	ghToken     = regexp.MustCompile(`gh[pousr]_[A-Za-z0-9]{36,}`)
-	jwtLike     = regexp.MustCompile(`eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+`)
-	privateKey  = regexp.MustCompile(`-----BEGIN (?:RSA |EC |OPENSSH |)PRIVATE KEY-----`)
-)
+type redactionPattern struct {
+	kind string
+	re   *regexp.Regexp
+	// mask, when non-empty, replaces the matched text in the reported Found
+	// field (used for private-key headers where echoing the match is noise).
+	mask string
+}
+
+var redactionPatterns = []redactionPattern{
+	{kind: "abs-path", re: regexp.MustCompile(`\B/(?:Users|home|opt|var|etc|root)/[A-Za-z0-9._/\-]+`)},
+	{kind: "abs-path", re: regexp.MustCompile(`\b[A-Za-z]:[\\/](?:[A-Za-z0-9 _.\-]+[\\/]?)+`)},
+	{kind: "aws-key", re: regexp.MustCompile(`\b(?:AKIA|ASIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ABIA|ACCA)[0-9A-Z]{16}\b`)},
+	{kind: "gh-token", re: regexp.MustCompile(`gh[pousr]_[A-Za-z0-9]{36,}`)},
+	{kind: "jwt", re: regexp.MustCompile(`eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+`)},
+	{kind: "private-key", re: regexp.MustCompile(`-----BEGIN (?:RSA |EC |OPENSSH |)PRIVATE KEY-----`), mask: "-----BEGIN …"},
+	{kind: "google-api-key", re: regexp.MustCompile(`\bAIza[0-9A-Za-z_\-]{35}\b`)},
+	{kind: "slack-token", re: regexp.MustCompile(`\bxox[baprs]-[0-9A-Za-z\-]{10,}\b`)},
+	// Stripe: sk_/rk_ accept 20+ alnum (short restricted keys exist). whsec_
+	// (webhook signing secret) is always ~35 base64 chars in practice, so we
+	// keep that branch stricter to reduce false positives on short tokens.
+	{kind: "stripe-key", re: regexp.MustCompile(`\b(?:(?:sk|rk)_(?:live|test)_[0-9A-Za-z]{20,}|whsec_[0-9A-Za-z]{32,})\b`)},
+	{kind: "ssh-public-key", re: regexp.MustCompile(`\bssh-(?:rsa|ed25519|dss|ecdsa)\s+AAAA[0-9A-Za-z+/=]{20,}`)},
+}
 
 type RedactionIssue struct {
 	Kind  string
@@ -150,23 +165,14 @@ func (ri RedactionIssue) String() string {
 func Redact(p *Packet) []RedactionIssue {
 	var issues []RedactionIssue
 	scan := func(field, s string) {
-		if absPathUnix.MatchString(s) {
-			issues = append(issues, RedactionIssue{Kind: field + "/abs-path", Found: absPathUnix.FindString(s)})
-		}
-		if absPathWin.MatchString(s) {
-			issues = append(issues, RedactionIssue{Kind: field + "/abs-path", Found: absPathWin.FindString(s)})
-		}
-		if awsKey.MatchString(s) {
-			issues = append(issues, RedactionIssue{Kind: field + "/aws-key", Found: awsKey.FindString(s)})
-		}
-		if ghToken.MatchString(s) {
-			issues = append(issues, RedactionIssue{Kind: field + "/gh-token", Found: ghToken.FindString(s)})
-		}
-		if jwtLike.MatchString(s) {
-			issues = append(issues, RedactionIssue{Kind: field + "/jwt", Found: jwtLike.FindString(s)})
-		}
-		if privateKey.MatchString(s) {
-			issues = append(issues, RedactionIssue{Kind: field + "/private-key", Found: "-----BEGIN …"})
+		for _, pat := range redactionPatterns {
+			if m := pat.re.FindString(s); m != "" {
+				found := m
+				if pat.mask != "" {
+					found = pat.mask
+				}
+				issues = append(issues, RedactionIssue{Kind: field + "/" + pat.kind, Found: found})
+			}
 		}
 	}
 	scan("goal", p.Goal)
