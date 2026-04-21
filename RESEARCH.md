@@ -163,7 +163,38 @@ All additions are **optional**; existing v0.1 packets remain valid under v0.2 wi
 
 ---
 
-## 7. References
+## 7. Attribution, licensing, and the scope of our contribution
+
+This document synthesizes and builds on the published work listed in section 8. Four things to say explicitly.
+
+**Every work referenced here is open-access.** Every cited paper is available as an arXiv preprint — free to read, free to link, no institutional access or per-article fee required. The named implementations — Reflexion, Voyager, LongMemEval, LLMLingua, MemGPT / Letta, SWE-bench — are open-source under MIT or Apache-2.0 licenses, both of which are compatible with this project's Apache-2.0 license.
+
+**What we are adopting from prior work** (with the specific provenance for each):
+
+- The conceptual decomposition of agent memory into *core / episodic / semantic / procedural* — from the MIRIX line and the broader agent-memory survey literature.
+- The *Retrieve → Reuse → Revise → Retain* cycle as a framing device — Aamodt & Plaza (1994).
+- The *Context / Decision / Consequences* shape of a decision record — Nygard (2011), 15 years of practitioner validation.
+- The result that **labeled reflection beats raw episodic logs** — Reflexion, Shinn et al. (2023).
+- The argument that **executable procedures deserve a distinct memory layer**, separate from observations and decisions — Voyager, Wang et al. (2023).
+- The load-bearing empirical result on **context position** in long-context LLMs — Liu et al. (2023).
+
+Every v0.2 proposal in section 4 is annotated in section 3 with the specific prior work motivating it; this is deliberate so reviewers and reimplementers can check our reasoning.
+
+**What this document and the wider ltm project contribute on top** is a concrete, portable **wire format** — the Core Memory Packet — for transferring these memory categories across machines, models, and agent frameworks. The categories themselves are not ours. The specific schema choices — required vs. optional fields, size caps, redaction rules, the JSON shape — are ours and are licensed Apache-2.0 along with the rest of the repo.
+
+**What we are not doing** — and what would cross ethical or legal lines if we did:
+
+- We are not redistributing paper PDFs. Linking is the right primitive; hosting copies is not.
+- We are not vendoring other projects' source into this repo under implicit rebadging. If we later adopt specific code from a referenced project (for example, as part of the benchmark harness), it will be vendored under `third_party/<project>/` with its original `LICENSE` and `NOTICE` preserved and a line in this repo's top-level `NOTICE` crediting it.
+- We are not claiming any novel contribution to the underlying memory-theory, compression, or retrieval literatures. Our contribution is a protocol for transferring what those literatures describe.
+
+**If you publish on top of this work** — a blog post, a derivative protocol, a commercial product — treat `RESEARCH.md` as a literature survey and `SPEC.md` as the protocol it motivates. Cite the protocol as:
+
+> ltm Core Memory Packet v0.2 — Dennis de Vulder and Thijs Herman, 2026. github.com/dennisdevulder/ltm.
+
+No license request or permission is needed to implement against or extend it.
+
+## 8. References
 
 - Aamodt, A., & Plaza, E. (1994). [Case-Based Reasoning: Foundational Issues, Methodological Variations, and System Approaches](https://journals.sagepub.com/doi/abs/10.3233/AIC-1994-7104). *AI Communications*.
 - Jiang, H., et al. (2023). [LLMLingua: Compressing Prompts for Accelerated Inference of Large Language Models](https://arxiv.org/abs/2310.05736). *EMNLP*.
