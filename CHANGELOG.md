@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.8.0](https://github.com/dennisdevulder/ltm/compare/v0.7.2...v0.8.0) (2026-04-22)
+
+
+### Features
+
+* **cli:** add ltm mcp subcommand exposing verbs as MCP tools ([#20](https://github.com/dennisdevulder/ltm/issues/20)) ([4b583c7](https://github.com/dennisdevulder/ltm/commit/4b583c76d961b550bcc3c87354abf8fd2087b152))
+
+
+### Documentation
+
+* **website:** add test drive section with example --resume flow ([#18](https://github.com/dennisdevulder/ltm/issues/18)) ([76c7c67](https://github.com/dennisdevulder/ltm/commit/76c7c6732e934f58dd83943246efaa746576297c))
+
 ## [0.7.2](https://github.com/dennisdevulder/ltm/compare/v0.7.1...v0.7.2) (2026-04-22)
 
 
