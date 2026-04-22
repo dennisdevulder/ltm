@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1](https://github.com/dennisdevulder/ltm/compare/v0.7.0...v0.7.1) (2026-04-22)
+
+
+### Bug Fixes
+
+* **ci:** chain GoReleaser after release-please so releases get assets ([#14](https://github.com/dennisdevulder/ltm/issues/14)) ([6e35b95](https://github.com/dennisdevulder/ltm/commit/6e35b957d5da0daa89a9d1c07545747776c14b0e))
+
 ## [0.7.0](https://github.com/dennisdevulder/ltm/compare/v0.6.0...v0.7.0) (2026-04-22)
 
 
