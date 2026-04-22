@@ -15,6 +15,7 @@ import (
 	"github.com/dennisdevulder/ltm/internal/auth"
 	"github.com/dennisdevulder/ltm/internal/packet"
 	"github.com/dennisdevulder/ltm/internal/store"
+	ltmschema "github.com/dennisdevulder/ltm/schema"
 )
 
 const (
@@ -105,8 +106,9 @@ func TestHealthz_NoAuthRequired(t *testing.T) {
 	if body["ok"] != true {
 		t.Errorf("healthz body.ok = %v, want true", body["ok"])
 	}
-	if _, hasVersion := body["version"]; !hasVersion {
-		t.Error("healthz body missing 'version'")
+	if body["version"] != ltmschema.Current {
+		t.Errorf("healthz version = %v, want %q — must match ltmschema.Current",
+			body["version"], ltmschema.Current)
 	}
 }
 

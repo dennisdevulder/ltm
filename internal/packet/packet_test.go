@@ -328,6 +328,59 @@ func TestEncode_Roundtrip(t *testing.T) {
 	}
 }
 
+// TestEncode_Roundtrip_V02 asserts that every v0.2-only field survives
+// Encode -> Parse intact. Guards against accidental omitempty removal or
+// struct-field drops that would silently break v0.2 wire compatibility.
+func TestEncode_Roundtrip_V02(t *testing.T) {
+	raw := `{
+  "ltm_version": "0.2",
+  "id": "` + validID + `",
+  "parent_id": "01JPARENTPACKETXXXXXXXXX01",
+  "created_at": "` + validCreated + `",
+  "goal": "g",
+  "success_criteria": ["/healthz returns 200", "latency under 50ms"],
+  "constraints": ["no secrets"],
+  "decisions": [{"what":"use x","why":"because","consequences":"locks y","locked":true}],
+  "methods": [{"name":"warm-cache","when_applicable":"cold start","how":"curl -s /healthz"}],
+  "attempts": [{"tried":"cold boot","outcome":"failed","learned":"timeout","confidence":"high"}],
+  "next_step": "n"
+}`
+
+	p1, err := Parse([]byte(raw))
+	if err != nil {
+		t.Fatalf("first parse: %v", err)
+	}
+
+	encoded, err := p1.Encode()
+	if err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+
+	p2, err := Parse(encoded)
+	if err != nil {
+		t.Fatalf("re-parse: %v\nencoded: %s", err, encoded)
+	}
+
+	if p2.ParentID != "01JPARENTPACKETXXXXXXXXX01" {
+		t.Errorf("ParentID lost: %q", p2.ParentID)
+	}
+	if len(p2.SuccessCriteria) != 2 ||
+		p2.SuccessCriteria[0] != "/healthz returns 200" ||
+		p2.SuccessCriteria[1] != "latency under 50ms" {
+		t.Errorf("SuccessCriteria lost or mangled: %v", p2.SuccessCriteria)
+	}
+	if len(p2.Methods) != 1 || p2.Methods[0].Name != "warm-cache" ||
+		p2.Methods[0].WhenApplicable != "cold start" || p2.Methods[0].How != "curl -s /healthz" {
+		t.Errorf("Methods lost or mangled: %+v", p2.Methods)
+	}
+	if len(p2.Decisions) != 1 || p2.Decisions[0].Consequences != "locks y" {
+		t.Errorf("Decision.Consequences lost: %q", p2.Decisions[0].Consequences)
+	}
+	if len(p2.Attempts) != 1 || p2.Attempts[0].Confidence != "high" {
+		t.Errorf("Attempt.Confidence lost: %q", p2.Attempts[0].Confidence)
+	}
+}
+
 func TestNewID_FormatAndUniqueness(t *testing.T) {
 	seen := make(map[string]struct{}, 1000)
 	for i := 0; i < 1000; i++ {

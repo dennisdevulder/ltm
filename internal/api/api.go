@@ -14,6 +14,7 @@ import (
 	"github.com/dennisdevulder/ltm/internal/auth"
 	"github.com/dennisdevulder/ltm/internal/packet"
 	"github.com/dennisdevulder/ltm/internal/store"
+	ltmschema "github.com/dennisdevulder/ltm/schema"
 )
 
 type Server struct {
@@ -84,7 +85,7 @@ func (r *recorder) WriteHeader(code int) { r.status = code; r.ResponseWriter.Wri
 // ---- handlers ----
 
 func (s *Server) healthz(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "version": "0.1"})
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "version": ltmschema.Current})
 }
 
 func (s *Server) createPacket(w http.ResponseWriter, r *http.Request) {

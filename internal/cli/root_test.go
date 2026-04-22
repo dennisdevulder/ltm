@@ -256,12 +256,17 @@ func TestNewRootCmd_WiresSubcommands(t *testing.T) {
 
 func TestNewRootCmd_VersionFlag(t *testing.T) {
 	// --version should be wired through cobra; exercising it also makes
-	// sure Version is a non-empty string.
+	// sure Version is a non-empty string. The exposed root.Version
+	// additionally carries the protocol suffix so clients can see which
+	// schema they speak at a glance.
 	if Version == "" {
 		t.Error("Version must not be empty")
 	}
 	root := NewRootCmd()
-	if root.Version != Version {
-		t.Errorf("root.Version = %q, want %q", root.Version, Version)
+	if !strings.Contains(root.Version, Version) {
+		t.Errorf("root.Version %q must include binary Version %q", root.Version, Version)
+	}
+	if !strings.Contains(root.Version, "protocol ") {
+		t.Errorf("root.Version %q must advertise the protocol version", root.Version)
 	}
 }
