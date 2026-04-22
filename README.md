@@ -124,21 +124,26 @@ any hit blocks the push unless you explicitly opt in with `--allow-unredacted`.
 
 The pre-flight refuses to ship:
 
-- Absolute paths (`/Users/...`, `/home/...`, `C:\...`) so the other side
+- Absolute paths on POSIX and Windows: anything under `/Users/…`, `/home/…`,
+  `/opt/…`, `/var/…`, `/etc/…`, `/root/…`, or `C:\…`, so the other side
   doesn't learn the shape of your filesystem
-- AWS access keys (AKIA prefix)
-- GitHub tokens (`ghp_`, `gho_`, `ghu_`, `ghs_`, `ghr_`)
+- AWS access-key and ARN identifiers: `AKIA`, `ASIA`, `AGPA`, `AIDA`, `AROA`,
+  `AIPA`, `ANPA`, `ANVA`, `ABIA`, `ACCA`
+- GitHub tokens: `ghp_`, `gho_`, `ghu_`, `ghs_`, `ghr_`
 - JWTs (three base64url segments, header decodes to a JOSE object)
-- Private-key headers (`-----BEGIN ... PRIVATE KEY-----`)
-- Google API keys (`AIza…`)
-- Slack tokens (`xox[abp]-…`)
-- Stripe keys (`sk_live_…`, `rk_live_…`)
-- SSH public keys (`ssh-ed25519 AAAA…`, `ssh-rsa AAAA…`)
+- Private-key headers (`-----BEGIN [RSA|EC|OPENSSH|] PRIVATE KEY-----`)
+- Google API keys (`AIza…`, 39 chars)
+- Slack tokens: `xoxa-`, `xoxb-`, `xoxp-`, `xoxr-`, `xoxs-`
+- Stripe keys and webhook secrets: `sk_live_…`, `sk_test_…`, `rk_live_…`,
+  `rk_test_…`, `whsec_…`
+- SSH public keys (`ssh-rsa`, `ssh-ed25519`, `ssh-dss`, `ssh-ecdsa` followed
+  by a base64 `AAAA…` payload)
 
-The scanner inspects only the visible text fields the spec lists as travelable
-(`goal`, `next_step`, `constraints`, `decisions.what`/`why`, `attempts.tried`/
-`learned`, `open_questions`). Everything else in a packet is structure, not
-content.
+The scanner inspects only the visible text fields the spec lists as
+travelable: `goal`, `next_step`, `success_criteria[]`, `constraints[]`,
+`decisions[].what` / `.why` / `.consequences`, `methods[].when_applicable`
+/ `.how`, `attempts[].tried` / `.learned`, and `open_questions[]`.
+Everything else in a packet is structure, not content.
 
 This is not a theoretical posture. It's a load-bearing trust property:
 packets are meant to move between machines, teams, and agents, and the

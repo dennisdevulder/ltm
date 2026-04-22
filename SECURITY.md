@@ -38,7 +38,8 @@ instead):
 ltm scans packets client-side before upload and refuses to push anything
 containing absolute paths, AWS keys, GitHub tokens, JWTs, private-key
 headers, Google API keys, Slack tokens, Stripe keys, or SSH public keys. The
-full list lives in `internal/packet/redact.go` and is enumerated in the
+full list lives in `internal/packet/packet.go` (search for
+`redactionPatterns`) and is enumerated in the
 [README](./README.md#packets-travel-secrets-dont).
 
 This is a best-effort safety net, not a guarantee. We design for it to be
