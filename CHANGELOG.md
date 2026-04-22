@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.2](https://github.com/dennisdevulder/ltm/compare/v0.7.1...v0.7.2) (2026-04-22)
+
+
+### Documentation
+
+* **readme:** rewrite for accuracy and tighter voice ([#12](https://github.com/dennisdevulder/ltm/issues/12)) ([d6284b7](https://github.com/dennisdevulder/ltm/commit/d6284b762f729c3194d53675027e47b126934f9c))
+
 ## [0.7.1](https://github.com/dennisdevulder/ltm/compare/v0.7.0...v0.7.1) (2026-04-22)
 
 
