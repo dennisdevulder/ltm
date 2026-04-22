@@ -51,7 +51,13 @@ clipboard so you can paste it straight into an agent session:
 					fmt.Print(block)
 					return nil
 				}
-				fmt.Fprintf(os.Stderr, "✓ resume block copied to clipboard (%d chars). Paste it into your agent session to continue.\n", len(block))
+				fmt.Fprintln(os.Stderr, "✓ Copied the example packet to your clipboard!")
+				fmt.Fprintln(os.Stderr)
+				fmt.Fprintln(os.Stderr, "It tells your agent to fetch an email we host online and rewrite it in a")
+				fmt.Fprintln(os.Stderr, "developer-friendly version. Your session will understand it immediately —")
+				fmt.Fprintln(os.Stderr, "no extra steering needed.")
+				fmt.Fprintln(os.Stderr)
+				fmt.Fprintln(os.Stderr, "Go ahead and paste it into your agent session!")
 				return nil
 			}
 			cmd.OutOrStdout().Write(embeddedExamplePacket)
