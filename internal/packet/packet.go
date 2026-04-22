@@ -186,6 +186,24 @@ func (p *Packet) Encode() ([]byte, error) {
 }
 
 // ---- redaction ----
+//
+// Implements the pre-flight specified in SPEC.md § Redaction; read that
+// section for the normative rules. Implementation notes:
+//
+//   - Patterns are RE2 regexes held in a flat slice. Each entry carries a
+//     kind label and an optional mask used in the reported Found field.
+//   - Redact walks the parsed *Packet struct field by field and records
+//     at most one RedactionIssue per (field, pattern). The serialized
+//     JSON is never scanned.
+//   - The override (--allow-unredacted in the CLI; allow_unredacted=true
+//     via MCP) is handled in the push/save code paths, not here; Redact
+//     is the pure check.
+//   - The reference server does not re-run Redact on receipt; redaction
+//     is a writer obligation.
+//
+// Adding a new pattern: append to redactionPatterns. Adding a new
+// scannable field on Packet: also add a scan(...) call in Redact — the
+// scanner does not reflect over fields automatically.
 
 type redactionPattern struct {
 	kind string
