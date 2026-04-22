@@ -2,6 +2,8 @@
 
 Portable context for AI work sessions.
 
+![ltm in action](demo.gif)
+
 ltm moves the *intent and state* of a work session between machines, models, and agents. Your CLAUDE.md, skills, prompts, and tool configs stay where they are. Only the understanding of what you're doing travels: the goal, the decisions you've locked in, what you've tried, what broke, and what to do next.
 
 ## The problem it solves
