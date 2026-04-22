@@ -1,37 +1,29 @@
 # ltm
 
-**Portable understanding for AI work sessions.**
+Portable context for AI work sessions.
 
-`ltm` moves the *intent and state* of a work session between machines, models, and agents — without dragging along your configuration. Your CLAUDE.md, your skills, your tool setup stay yours. Only the understanding of what you're doing and why travels.
+ltm moves the *intent and state* of a work session between machines, models, and agents. Your CLAUDE.md, skills, prompts, and tool configs stay where they are. Only the understanding of what you're doing travels: the goal, the decisions you've locked in, what you've tried, what broke, and what to do next.
 
-## The problem
+## The problem it solves
 
-You're mid-pivot. You hit a wall on one machine — wrong OS, wrong GPU, wrong model — and jump to another. The new environment has no memory of what you were doing, why you abandoned the last approach, or what you already ruled out. You spend an hour re-briefing the model. It makes the same mistakes you already solved for.
+You're three hours into a task on your laptop, you hit a wall (wrong OS, wrong GPU, wrong model), and you jump to a different machine. The new session has no memory of what you were doing. You spend an hour re-briefing the agent. The agent makes the same mistakes you already solved for.
 
-Existing "AI memory" tools solve this for a single agent on a single machine. None of them move cleanly between providers or hosts, and most either require enterprise contracts or bundle so much configuration that they break on the far side.
+Existing "AI memory" products solve this for a single agent on a single machine. None of them move cleanly between providers or hosts, and most either require enterprise contracts or bundle enough local configuration that they break on the far side.
 
-`ltm` is the smallest possible thing that solves this:
+ltm is the smallest useful thing that fixes this:
 
-- A **protocol** — the [Core Memory Packet](./SPEC.md) — that captures intent, decisions, and open questions in ~5 KB of JSON.
-- A **CLI** — `ltm push` / `ltm pull` / `ltm auth` — that moves packets between machines.
-- A **server** — self-host on any VPS, or federate between hosts. No cloud requirement. No enterprise tier.
-
-## Design principles
-
-1. **Intent is portable; configuration isn't.** We never ship your CLAUDE.md, skills, prompts, or tool configs. Your setup is your business.
-2. **Self-host or nothing.** There is no hosted tier that unlocks features. If it doesn't run on a $5 VPS, it's not done.
-3. **Model-agnostic.** A packet written by Claude is readable by GPT, Gemini, or the next thing. No vendor fields.
-4. **Spec first, code second.** The [protocol](./SPEC.md) is the product. Implementations follow.
-5. **Redact aggressively.** Packets are expected to travel between machines, teams, and (eventually) organizations. Secrets and local state never ride along.
+- a **protocol**, the [Core Memory Packet](./SPEC.md), that captures intent, decisions, open questions, and next steps in a few kilobytes of JSON
+- a **CLI**, `ltm`, that writes, validates, pushes, and pulls packets
+- a **server**, a single Go binary with SQLite storage and bearer-token or OAuth-device-flow auth, that runs on any Linux box with room for a small database
 
 ## Install
 
 ```bash
-# macOS / Linux — amd64 and arm64
+# macOS / Linux, amd64 and arm64.
 curl -fsSL https://ltm-cli.dev/install | sh
 ```
 
-Build from source:
+Or from source:
 
 ```bash
 git clone https://github.com/dennisdevulder/ltm
@@ -39,67 +31,76 @@ cd ltm
 go build -o ltm ./cmd/ltm
 ```
 
-### On your server (VPS, OpenClaw instance, localhost)
+## Use it (client)
 
 ```bash
-# First-time setup. Prints a root token — copy it.
+# Sign in. Three supported forms:
+ltm auth                                  # OAuth device flow against platform.ltm-cli.dev
+ltm auth https://your-vps.example         # OAuth device flow against a self-hosted server
+ltm auth https://your-vps.example <token> # Paste a pre-issued bearer token
+
+# Write a packet by hand or have an agent emit one, then push it.
+ltm push packet.json
+cat packet.json | ltm push -              # agents can pipe directly
+
+# Browse what's on the server.
+ltm ls
+ltm show <id>
+ltm pull <id>                             # raw JSON to stdout
+ltm rm <id>
+
+# Pick up where you left off.
+ltm resume
+
+# See a valid packet without needing a server at all.
+ltm example
+
+# Upgrade in place.
+ltm update
+```
+
+## Run it (server)
+
+```bash
+# First-time setup. Prints a root token. Copy it; it's never shown again.
 ltm server init --db ~/.local/share/ltm/ltm.db
 
 # Run the server.
 ltm server --addr :8080
-```
 
-### On any client machine
-
-```bash
-# Sign in. Three forms:
-ltm auth                                  # managed hub (platform.ltm-cli.dev) via OAuth device flow
-ltm auth http://your-vps:8080             # self-hosted server via OAuth device flow
-ltm auth http://your-vps:8080 <token>     # self-hosted server, paste a pre-issued bearer token
-
-# Write a packet (see SPEC.md for the shape), then push it.
-ltm push my-packet.json
-# Or from stdin — agents can pipe directly:
-cat packet.json | ltm push -
-
-# Work with what's on the server.
-ltm ls
-ltm show <id>
-ltm pull <id>     # raw JSON to stdout
-ltm rm <id>
-
-# Resume the latest packet you pushed.
-ltm resume
-
-# Upgrade the CLI in place.
-ltm update
-```
-
-### Issue more tokens
-
-```bash
-# On the server:
+# Issue more tokens for more machines.
 ltm server issue-token laptop
 ltm server issue-token ci
 ```
 
-## What's in the box today
+HTTPS is your job. Put it behind Caddy, nginx, or a reverse proxy of your choosing.
 
-- **CLI**: `auth` (+ `whoami`), `config` (`set`/`get`/`unset`/`list`/`edit`/`path`), `push`, `pull`, `ls`, `show`, `rm`, `resume`, `example`, `update`, `server` (+ `init`/`issue-token`).
-- **Server**: single Go binary, SQLite storage, bearer-token auth, ~150 lines of HTTP handlers.
-- **Validation**: JSON Schema for the Core Memory Packet, embedded in the binary.
-- **Redaction pre-flight**: rejects packets containing absolute paths, AWS keys, GitHub tokens, JWTs, or private keys before they leave your machine. Override with `--allow-unredacted`.
-- **OAuth device flow**: `ltm auth` with no args signs into the managed hub via RFC 8628 — no copy-pasting tokens.
+## What's in the box
+
+- **CLI**: `auth` (and `whoami`), `config` (`set`/`get`/`unset`/`list`/`edit`/`path`), `push`, `pull`, `ls`, `show`, `rm`, `resume`, `example`, `update`, `server` (with `init` and `issue-token`).
+- **HTTP API**: `GET /v1/healthz`, plus bearer-authed `POST/GET/DELETE /v1/packets`. Max packet size is 32 KB.
+- **Packet validation**: JSON Schema for v0.1 and v0.2, embedded in the binary and routed by the declared `ltm_version`.
+- **Redaction pre-flight**: packets are scanned before they leave your machine. Absolute paths (`/Users/...`, `/home/...`, `C:\...`), AWS keys, GitHub tokens, JWTs, private-key headers, Google API keys, Slack tokens, Stripe keys, and SSH public keys all block the push. Override with `--allow-unredacted` if you know what you're doing.
+- **OAuth 2.0 device-authorization flow** (RFC 8628) against the managed hub. No token copy-paste.
+
+## Principles
+
+1. *Intent is portable; configuration isn't.* Packets never carry your CLAUDE.md, skills, prompts, or tool setup. Your setup is yours.
+2. *Self-host or nothing.* No hosted tier unlocks features. If it doesn't run on a $5 VPS, it's not done.
+3. *Model-agnostic.* A packet written by Claude is readable by GPT, Gemini, or whatever comes next. No vendor fields.
+4. *Spec first, code second.* The [protocol](./SPEC.md) is the product. The CLI and server are reference implementations.
+5. *Redact aggressively.* Packets are expected to travel. Secrets and local state never ride along.
 
 ## What's not here yet
 
-- MCP server (planned — a natural follow-up).
-- Packet sharing, team spaces, federation. (Chaining has landed in the v0.2 schema via `parent_id`; servers don't surface it yet.)
-- Exhaustive coverage across every edge case. Unit + integration tests ship with the binary; fuzz and end-to-end harnesses are still to do.
+- MCP server (planned).
+- Packet sharing, team spaces, federation. Chaining exists in the v0.2 schema via `parent_id`; servers don't surface it yet.
+- Windows binaries. Linux and macOS only, amd64 and arm64.
+- A fuzz and end-to-end harness on top of the existing unit and integration tests.
 
 ## Status
 
-Pre-alpha. The spec is drafting — expect breaking changes before `v1.0`. Pin against the `ltm_version` field when writing packets.
+Pre-alpha. The spec is a draft. Expect breaking changes before `v1.0`. Pin against the `ltm_version` field when you write a packet.
 
 ## License
 
