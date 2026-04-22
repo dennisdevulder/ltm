@@ -41,7 +41,6 @@
     --dimmer:    rgba(232,230,223,.30);
     --rule:      rgba(232,230,223,.10);
     --accent:    #ff5c1c;
-    --banner-bg: #1a0f08;
 
     --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
     --sans: "Geist", -apple-system, system-ui, sans-serif;
@@ -62,17 +61,6 @@
 
   /* ————— layout ————— */
   .col { max-width: 960px; margin: 0 auto; padding: 0 48px; }
-
-  .banner {
-    background: var(--banner-bg);
-    border-bottom: 1px solid var(--accent);
-    color: var(--accent);
-    font-size: 12px;
-    letter-spacing: .5px;
-    padding: 8px 0;
-    text-align: center;
-    text-transform: uppercase;
-  }
 
   .nav {
     display: flex; align-items: center; justify-content: space-between;
@@ -261,11 +249,6 @@
 </head>
 <body>
 
-  <!-- ————— draft banner ————— -->
-  <div class="banner">
-    Draft specification · v0.2 · not yet ratified · comments welcome in <a href="https://github.com/dennisdevulder/ltm/discussions" style="color:inherit;text-decoration:underline;text-underline-offset:3px">github discussions</a>
-  </div>
-
   <!-- ————— nav ————— -->
   <nav class="nav col">
     <a class="nav-brand" href="./" aria-label="ltm — home">
@@ -275,6 +258,7 @@
       <a href="#spec">§spec</a>
       <a href="#mcp">§mcp</a>
       <a href="#install">§install</a>
+      <a href="https://platform.ltm-cli.dev/">platform↗</a>
       <a href="https://github.com/dennisdevulder/ltm">github↗</a>
     </div>
   </nav>
@@ -284,8 +268,8 @@
     <div class="meta">LTM-SPEC-0001 · 2026-04-21</div>
     <h1>Portable understanding<br>for AI work sessions.</h1>
     <p class="lede">
-      Ship intent between machines and models — not configuration. A one-file,
-      one-verb protocol. Self-hosted. Model-agnostic. Open.
+      Ship intent between machines and models — not configuration. One packet,
+      two verbs. Self-hosted. Model-agnostic. Open.
     </p>
 
     <div class="frontmatter">
@@ -329,7 +313,7 @@
   <!-- ————— 2. Protocol ————— -->
   <section class="sec col" id="spec">
     <h2 class="sec-n">§ 2. Protocol</h2>
-    <h3 class="sec-t">Two verbs. That is the spec.</h3>
+    <h3 class="sec-t">One packet. Two verbs.</h3>
     <table class="verbs">
       <thead>
         <tr><th>verb</th><th>description</th><th>example</th></tr>
