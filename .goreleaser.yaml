@@ -50,6 +50,10 @@ changelog:
 release:
   draft: false
   prerelease: auto
+  # release-please creates the GitHub Release before GoReleaser runs; 'append'
+  # means GoReleaser attaches artifacts to the existing release instead of
+  # trying to replace it.
+  mode: append
   header: |
     ## ltm {{.Tag}}
 

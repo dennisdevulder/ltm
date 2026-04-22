@@ -1,8 +1,13 @@
 name: release-please
 
 # Opens (or updates) a "Release PR" on every push to main. Merging that PR
-# creates a git tag, which in turn triggers release.yml + GoReleaser to build
-# and publish binaries.
+# creates the tag + GitHub Release via release-please, then this same workflow
+# runs GoReleaser to attach the binary tarballs + checksums to that release.
+#
+# Chaining inside one workflow is required because the tag push performed by
+# release-please uses GITHUB_TOKEN, and GitHub does not trigger other
+# workflows (e.g. release.yml) from GITHUB_TOKEN-driven events. Without this
+# chain, v0.7.0 came out without assets — a bug this file now fixes.
 #
 # release-please reads conventional-commit prefixes (feat:, fix:, docs:, etc.)
 # from commits since the last tag to decide the semver bump.
@@ -18,9 +23,33 @@ permissions:
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name:        ${{ steps.release.outputs.tag_name }}
     steps:
       - uses: googleapis/release-please-action@v4
+        id: release
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+  goreleaser:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.release-please.outputs.tag_name }}
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: '~> v2'
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
