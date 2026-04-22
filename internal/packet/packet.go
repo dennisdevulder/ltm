@@ -17,19 +17,26 @@ import (
 
 const MaxPacketBytes = 32 * 1024
 
+// Packet is the in-memory representation of a Core Memory Packet, covering the
+// union of fields defined by v0.1 and v0.2. Fields unique to v0.2 use
+// omitempty and are absent from v0.1 packets, so round-tripping a v0.1 packet
+// through this struct produces byte-identical v0.1 JSON.
 type Packet struct {
-	LTMVersion    string      `json:"ltm_version"`
-	ID            string      `json:"id"`
-	CreatedAt     time.Time   `json:"created_at"`
-	Project       *Project    `json:"project,omitempty"`
-	Goal          string      `json:"goal"`
-	Constraints   []string    `json:"constraints,omitempty"`
-	Decisions     []Decision  `json:"decisions,omitempty"`
-	Attempts      []Attempt   `json:"attempts,omitempty"`
-	OpenQuestions []string    `json:"open_questions,omitempty"`
-	NextStep      string      `json:"next_step"`
-	Tags          []string    `json:"tags,omitempty"`
-	Provenance    *Provenance `json:"provenance,omitempty"`
+	LTMVersion      string      `json:"ltm_version"`
+	ID              string      `json:"id"`
+	ParentID        string      `json:"parent_id,omitempty"`       // v0.2
+	CreatedAt       time.Time   `json:"created_at"`
+	Project         *Project    `json:"project,omitempty"`
+	Goal            string      `json:"goal"`
+	SuccessCriteria []string    `json:"success_criteria,omitempty"` // v0.2
+	Constraints     []string    `json:"constraints,omitempty"`
+	Decisions       []Decision  `json:"decisions,omitempty"`
+	Methods         []Method    `json:"methods,omitempty"`          // v0.2
+	Attempts        []Attempt   `json:"attempts,omitempty"`
+	OpenQuestions   []string    `json:"open_questions,omitempty"`
+	NextStep        string      `json:"next_step"`
+	Tags            []string    `json:"tags,omitempty"`
+	Provenance      *Provenance `json:"provenance,omitempty"`
 }
 
 type Project struct {
@@ -38,15 +45,26 @@ type Project struct {
 }
 
 type Decision struct {
-	What   string `json:"what"`
-	Why    string `json:"why"`
-	Locked bool   `json:"locked,omitempty"`
+	What         string `json:"what"`
+	Why          string `json:"why"`
+	Consequences string `json:"consequences,omitempty"` // v0.2
+	Locked       bool   `json:"locked,omitempty"`
+}
+
+// Method captures reusable procedural knowledge (v0.2).
+// A receiving agent should treat 'how' as an authoritative recipe for the
+// situation described by 'when_applicable'.
+type Method struct {
+	Name           string `json:"name"`
+	WhenApplicable string `json:"when_applicable"`
+	How            string `json:"how"`
 }
 
 type Attempt struct {
-	Tried   string `json:"tried"`
-	Outcome string `json:"outcome"`
-	Learned string `json:"learned,omitempty"`
+	Tried      string `json:"tried"`
+	Outcome    string `json:"outcome"`
+	Learned    string `json:"learned,omitempty"`
+	Confidence string `json:"confidence,omitempty"` // v0.2: "low" | "medium" | "high"
 }
 
 type Provenance struct {
@@ -56,18 +74,32 @@ type Provenance struct {
 	Confidence  string `json:"confidence,omitempty"`
 }
 
-var validator *jsonschema.Schema
+// ---- schema registry ----
+
+// validators maps an ltm_version string (e.g. "0.1", "0.2") to a compiled
+// JSON Schema. At validation time we peek at the packet's ltm_version and
+// route to the matching validator so v0.1 packets stay strictly v0.1.
+var validators = map[string]*jsonschema.Schema{}
 
 func init() {
-	c := jsonschema.NewCompiler()
-	if err := c.AddResource(ltmschema.CoreMemoryV01URL, mustParseJSON(ltmschema.CoreMemoryV01)); err != nil {
-		panic(fmt.Errorf("load schema: %w", err))
+	for _, entry := range []struct {
+		version string
+		url     string
+		data    []byte
+	}{
+		{"0.1", ltmschema.CoreMemoryV01URL, ltmschema.CoreMemoryV01},
+		{"0.2", ltmschema.CoreMemoryV02URL, ltmschema.CoreMemoryV02},
+	} {
+		c := jsonschema.NewCompiler()
+		if err := c.AddResource(entry.url, mustParseJSON(entry.data)); err != nil {
+			panic(fmt.Errorf("load %s schema: %w", entry.version, err))
+		}
+		s, err := c.Compile(entry.url)
+		if err != nil {
+			panic(fmt.Errorf("compile %s schema: %w", entry.version, err))
+		}
+		validators[entry.version] = s
 	}
-	s, err := c.Compile(ltmschema.CoreMemoryV01URL)
-	if err != nil {
-		panic(fmt.Errorf("compile schema: %w", err))
-	}
-	validator = s
 }
 
 func mustParseJSON(b []byte) any {
@@ -83,7 +115,27 @@ func NewID() string {
 	return ulid.Make().String()
 }
 
-// Validate runs the JSON Schema check against raw bytes.
+// SupportedVersions returns the sorted list of ltm_version strings this
+// package can validate.
+func SupportedVersions() []string {
+	out := make([]string, 0, len(validators))
+	for v := range validators {
+		out = append(out, v)
+	}
+	// tiny hand-sort for stability (2–3 entries)
+	for i := range out {
+		for j := i + 1; j < len(out); j++ {
+			if out[i] > out[j] {
+				out[i], out[j] = out[j], out[i]
+			}
+		}
+	}
+	return out
+}
+
+// Validate runs the JSON Schema check against raw bytes. The schema is
+// chosen by the packet's declared ltm_version; unknown versions are
+// rejected rather than silently accepted.
 func Validate(raw []byte) error {
 	if len(raw) > MaxPacketBytes {
 		return fmt.Errorf("packet is %d bytes, max is %d", len(raw), MaxPacketBytes)
@@ -91,6 +143,18 @@ func Validate(raw []byte) error {
 	var v any
 	if err := json.Unmarshal(raw, &v); err != nil {
 		return fmt.Errorf("invalid json: %w", err)
+	}
+	m, ok := v.(map[string]any)
+	if !ok {
+		return fmt.Errorf("packet must be a JSON object")
+	}
+	ver, _ := m["ltm_version"].(string)
+	if ver == "" {
+		return fmt.Errorf("missing required field 'ltm_version'")
+	}
+	validator, ok := validators[ver]
+	if !ok {
+		return fmt.Errorf("unsupported ltm_version %q (supported: %s)", ver, strings.Join(SupportedVersions(), ", "))
 	}
 	if err := validator.Validate(v); err != nil {
 		return fmt.Errorf("schema violation: %w", err)
@@ -177,12 +241,20 @@ func Redact(p *Packet) []RedactionIssue {
 	}
 	scan("goal", p.Goal)
 	scan("next_step", p.NextStep)
+	for i, c := range p.SuccessCriteria {
+		scan(fmt.Sprintf("success_criteria[%d]", i), c)
+	}
 	for i, c := range p.Constraints {
 		scan(fmt.Sprintf("constraints[%d]", i), c)
 	}
 	for i, d := range p.Decisions {
 		scan(fmt.Sprintf("decisions[%d].what", i), d.What)
 		scan(fmt.Sprintf("decisions[%d].why", i), d.Why)
+		scan(fmt.Sprintf("decisions[%d].consequences", i), d.Consequences)
+	}
+	for i, m := range p.Methods {
+		scan(fmt.Sprintf("methods[%d].when_applicable", i), m.WhenApplicable)
+		scan(fmt.Sprintf("methods[%d].how", i), m.How)
 	}
 	for i, a := range p.Attempts {
 		scan(fmt.Sprintf("attempts[%d].tried", i), a.Tried)
@@ -196,11 +268,11 @@ func Redact(p *Packet) []RedactionIssue {
 
 // ---- helpers ----
 
-// New returns a Packet with ID, CreatedAt, and LTMVersion pre-filled.
-// Callers are responsible for every other field.
+// New returns a Packet with ID, CreatedAt, and LTMVersion pre-filled for the
+// current schema version. Callers are responsible for every other field.
 func New() *Packet {
 	return &Packet{
-		LTMVersion: "0.1",
+		LTMVersion: ltmschema.Current,
 		ID:         NewID(),
 		CreatedAt:  time.Now().UTC(),
 	}
