@@ -1,0 +1,26 @@
+name: release-please
+
+# Opens (or updates) a "Release PR" on every push to main. Merging that PR
+# creates a git tag, which in turn triggers release.yml + GoReleaser to build
+# and publish binaries.
+#
+# release-please reads conventional-commit prefixes (feat:, fix:, docs:, etc.)
+# from commits since the last tag to decide the semver bump.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
