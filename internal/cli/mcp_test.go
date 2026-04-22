@@ -149,7 +149,7 @@ func TestMCP_ToolsList_ReturnsAllTools(t *testing.T) {
 	if !ok {
 		t.Fatalf("tools field wrong type: %#v", m["tools"])
 	}
-	want := []string{"ls", "show", "pull", "resume", "push", "rm", "example", "whoami"}
+	want := []string{"ls", "show", "pull", "resume", "push", "save", "rm", "example", "whoami"}
 	got := make(map[string]bool, len(tools))
 	for _, td := range tools {
 		got[td.Name] = true
@@ -494,6 +494,30 @@ func TestMCP_Tool_Push_BlocksSecret(t *testing.T) {
 	}
 	if _, ok := api.packets[sampleID]; ok {
 		t.Error("blocked packet should not reach the server")
+	}
+}
+
+// ---- tool: save ----
+
+// Save is wired to the same handler as push; this test exists to catch
+// accidental regressions if the dispatch is ever re-pointed or the tool
+// entry is dropped from the registry.
+func TestMCP_Tool_Save_Valid(t *testing.T) {
+	api, _ := setupCLI(t)
+
+	var packet map[string]any
+	_ = json.Unmarshal(samplePacket(sampleID), &packet)
+
+	resp := callTool(t, "save", map[string]any{"packet": packet})
+	text, isErr := toolText(t, resp)
+	if isErr {
+		t.Fatalf("save returned error: %s", text)
+	}
+	if strings.TrimSpace(text) != sampleID {
+		t.Errorf("save result = %q, want just the id %q", text, sampleID)
+	}
+	if _, ok := api.packets[sampleID]; !ok {
+		t.Error("packet not stored on fake api")
 	}
 }
 

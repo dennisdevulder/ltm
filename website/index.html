@@ -337,12 +337,19 @@
       SQLite storage. ULID-keyed packets. Nothing exotic; nothing reinvented.
     </p>
     <p class="note">
-      The CLI ships helpers for the common flows: <span class="m">auth</span>,
-      <span class="m">ls</span>, <span class="m">show</span>, <span class="m">rm</span>,
-      <span class="m">resume</span>, <span class="m">example</span>, <span class="m">update</span>,
-      a self-hostable <span class="m">server</span>, and <span class="m">mcp</span> (a
-      Model Context Protocol stdio server that exposes the same verbs as tools to
-      any MCP-aware agent). None of them extend the protocol.
+      The CLI wraps those two verbs with ergonomic helpers. Most agents only ever call
+      <span class="m">save</span> — serialize the current session into a packet and push
+      it in one step — and <span class="m">resume</span> on the other end. Run
+      <span class="m">ltm resume</span> with no arguments to get an interactive picker
+      of your recent packets; pick one and its resume block is copied straight to
+      your clipboard, ready to paste into the next session. Pass a packet ID to
+      skip the picker and print the block to stdout.
+      The rest (<span class="m">auth</span>, <span class="m">ls</span>,
+      <span class="m">show</span>, <span class="m">rm</span>, <span class="m">example</span>,
+      <span class="m">update</span>, a self-hostable <span class="m">server</span>, and
+      <span class="m">mcp</span> — a Model Context Protocol stdio server that exposes
+      the same verbs as tools to any MCP-aware agent) are there when you need them.
+      None of them extend the protocol.
     </p>
   </section>
 
