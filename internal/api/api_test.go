@@ -334,6 +334,33 @@ func TestCreatePacket_ResurrectsSoftDeleted(t *testing.T) {
 	}
 }
 
+func TestNew_NilLoggerDefaults(t *testing.T) {
+	// New(nil) must substitute log.Default() instead of panicking — otherwise
+	// 'ltm server' would crash on any callpath that skipped wiring a logger.
+	dbPath := filepath.Join(t.TempDir(), "ltm.db")
+	st, err := store.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	s := New(st, nil)
+	if s.Logger == nil {
+		t.Error("expected New to substitute a non-nil logger when given nil")
+	}
+}
+
+func TestListPackets_IgnoresMalformedLimit(t *testing.T) {
+	// A non-numeric limit should not error — it just falls back to the default.
+	url, _ := newTestServer(t)
+	_ = request(t, "POST", url+"/v1/packets", validPacketJSON(t, validID), true).Body.Close()
+
+	resp := request(t, "GET", url+"/v1/packets?limit=not-a-number", nil, true)
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("status = %d, want 200 (malformed limit should be ignored)", resp.StatusCode)
+	}
+}
+
 func TestShutdown_ClosesStore(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "ltm.db")
 	st, err := store.Open(dbPath)

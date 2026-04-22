@@ -421,3 +421,385 @@ func TestNew_ProducesCurrentVersion(t *testing.T) {
 		t.Errorf("New() LTMVersion=%q, want 0.2", p.LTMVersion)
 	}
 }
+
+// minimalV02 is a helper for v0.2 packets. Extras is an optional JSON fragment
+// (already wrapped in its own key:value pairs) spliced just before the closing
+// brace so tests can add one or two v0.2-specific fields without re-typing the
+// boilerplate every time.
+func minimalV02(extras string) string {
+	base := `{"ltm_version":"0.2","id":"` + validID +
+		`","created_at":"` + validCreated +
+		`","goal":"g","next_step":"n"`
+	if extras != "" {
+		base += "," + extras
+	}
+	return base + "}"
+}
+
+// ---- unsupported ltm_version ----
+
+func TestValidate_UnsupportedVersion_ListsSupportedVersions(t *testing.T) {
+	// The error message is load-bearing — downstream tooling surfaces it to
+	// end users who need to know which versions their CLI understands.
+	raw := `{"ltm_version":"0.3","id":"` + validID +
+		`","created_at":"` + validCreated +
+		`","goal":"g","next_step":"n"}`
+	err := Validate([]byte(raw))
+	if err == nil {
+		t.Fatal("expected error for unsupported ltm_version, got nil")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "unsupported ltm_version") {
+		t.Errorf("expected 'unsupported ltm_version' in error, got: %v", err)
+	}
+	if !strings.Contains(msg, `"0.3"`) {
+		t.Errorf("expected error to echo back the bad version, got: %v", err)
+	}
+	for _, v := range SupportedVersions() {
+		if !strings.Contains(msg, v) {
+			t.Errorf("expected error to list supported version %q, got: %v", v, err)
+		}
+	}
+}
+
+func TestValidate_UnsupportedVersion_Variants(t *testing.T) {
+	// Each of these must be rejected at the version-routing step, before the
+	// packet ever reaches a JSON Schema. If we forget to reject any of these
+	// a client could silently pick whichever schema it happens to match last.
+	cases := []struct {
+		name    string
+		version string
+	}{
+		{"future minor", "0.3"},
+		{"future major", "1.0"},
+		{"v-prefix", "v0.2"},
+		{"with-patch", "0.2.0"},
+		{"empty string", ""},
+		{"whitespace", " 0.2"},
+		{"zero", "0"},
+		{"non-numeric", "beta"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			raw := `{"ltm_version":"` + tc.version + `","id":"` + validID +
+				`","created_at":"` + validCreated +
+				`","goal":"g","next_step":"n"}`
+			err := Validate([]byte(raw))
+			if err == nil {
+				t.Fatalf("expected error for ltm_version=%q, got nil", tc.version)
+			}
+			// Empty string hits the "missing required field" branch; every
+			// other form should hit the "unsupported" branch.
+			if tc.version == "" {
+				if !strings.Contains(err.Error(), "missing required field 'ltm_version'") {
+					t.Errorf("empty version should trigger missing-field error, got: %v", err)
+				}
+				return
+			}
+			if !strings.Contains(err.Error(), "unsupported ltm_version") {
+				t.Errorf("expected 'unsupported ltm_version' error for %q, got: %v", tc.version, err)
+			}
+		})
+	}
+}
+
+func TestValidate_LTMVersionNotString(t *testing.T) {
+	// An int, null, or array in the version slot must not crash the
+	// type assertion — it falls through to the missing-field error.
+	cases := []string{
+		`{"ltm_version":2,"id":"` + validID + `","created_at":"` + validCreated + `","goal":"g","next_step":"n"}`,
+		`{"ltm_version":null,"id":"` + validID + `","created_at":"` + validCreated + `","goal":"g","next_step":"n"}`,
+		`{"ltm_version":["0.2"],"id":"` + validID + `","created_at":"` + validCreated + `","goal":"g","next_step":"n"}`,
+	}
+	for _, raw := range cases {
+		err := Validate([]byte(raw))
+		if err == nil {
+			t.Errorf("expected error for non-string ltm_version in %s, got nil", raw)
+			continue
+		}
+		if !strings.Contains(err.Error(), "missing required field 'ltm_version'") {
+			t.Errorf("expected missing-field error for non-string version, got: %v", err)
+		}
+	}
+}
+
+// ---- methods[].name rejection ----
+
+func TestValidate_MethodsName_Rejection(t *testing.T) {
+	// Schema pattern: ^[a-z0-9][a-z0-9-]{0,127}$
+	// The name field is the identity hook agents use to look up a recipe.
+	// Anything that isn't lowercase-kebab-or-digit has to be rejected cleanly
+	// so recipes can't ship with names that are hard to match, search, or log.
+	cases := []struct {
+		name   string
+		method string // full methods[0] JSON fragment
+	}{
+		{
+			"uppercase-name",
+			`{"name":"RefreshLogin","when_applicable":"push denied","how":"retry"}`,
+		},
+		{
+			"underscore-in-name",
+			`{"name":"refresh_login","when_applicable":"push denied","how":"retry"}`,
+		},
+		{
+			"space-in-name",
+			`{"name":"refresh login","when_applicable":"push denied","how":"retry"}`,
+		},
+		{
+			"leading-hyphen",
+			`{"name":"-refresh","when_applicable":"push denied","how":"retry"}`,
+		},
+		{
+			"leading-dot",
+			`{"name":".refresh","when_applicable":"push denied","how":"retry"}`,
+		},
+		{
+			"empty-name",
+			`{"name":"","when_applicable":"push denied","how":"retry"}`,
+		},
+		{
+			"unicode-name",
+			`{"name":"refresh-login-é","when_applicable":"push denied","how":"retry"}`,
+		},
+		{
+			"too-long-name",
+			`{"name":"` + strings.Repeat("a", 129) + `","when_applicable":"push denied","how":"retry"}`,
+		},
+		{
+			"slash-in-name",
+			`{"name":"refresh/login","when_applicable":"push denied","how":"retry"}`,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			raw := minimalV02(`"methods":[` + tc.method + `]`)
+			err := Validate([]byte(raw))
+			if err == nil {
+				t.Fatalf("expected schema violation for method %s, got nil", tc.method)
+			}
+			if !strings.Contains(err.Error(), "schema violation") {
+				t.Errorf("expected 'schema violation' in error, got: %v", err)
+			}
+		})
+	}
+}
+
+func TestValidate_MethodsName_Accepted(t *testing.T) {
+	// Counterpart to the rejection table — these must pass, otherwise the
+	// regex is too strict to be useful for real recipe names.
+	cases := []string{
+		"refresh",
+		"refresh-login",
+		"r",
+		"0start-with-digit",
+		"step-1-of-2",
+		strings.Repeat("a", 128), // at maxLength
+	}
+	for _, name := range cases {
+		t.Run(name, func(t *testing.T) {
+			raw := minimalV02(`"methods":[{"name":"` + name +
+				`","when_applicable":"when","how":"how"}]`)
+			if err := Validate([]byte(raw)); err != nil {
+				t.Errorf("expected %q to be accepted, got: %v", name, err)
+			}
+		})
+	}
+}
+
+func TestValidate_Methods_RequiredFields(t *testing.T) {
+	// Every method needs all three: name, when_applicable, how. A method with
+	// only a name is useless to a receiving agent — it'd know what the recipe
+	// is called but not when or how to apply it.
+	cases := []struct {
+		name    string
+		method  string
+		missing string
+	}{
+		{"missing-name", `{"when_applicable":"w","how":"h"}`, "name"},
+		{"missing-when", `{"name":"r","how":"h"}`, "when_applicable"},
+		{"missing-how", `{"name":"r","when_applicable":"w"}`, "how"},
+		{"empty-object", `{}`, "name"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			raw := minimalV02(`"methods":[` + tc.method + `]`)
+			err := Validate([]byte(raw))
+			if err == nil {
+				t.Fatalf("expected error for method missing %s, got nil", tc.missing)
+			}
+			if !strings.Contains(err.Error(), "schema violation") {
+				t.Errorf("expected schema violation, got: %v", err)
+			}
+		})
+	}
+}
+
+func TestValidate_Methods_AdditionalPropertiesRejected(t *testing.T) {
+	// If we ever add a new method subfield in v0.3, it must not silently
+	// land in v0.2 packets today — schema has additionalProperties:false.
+	raw := minimalV02(`"methods":[{"name":"r","when_applicable":"w","how":"h","extra":"oops"}]`)
+	err := Validate([]byte(raw))
+	if err == nil {
+		t.Fatal("expected extra method field to be rejected, got nil")
+	}
+	if !strings.Contains(err.Error(), "additional") {
+		t.Errorf("expected 'additional properties' error, got: %v", err)
+	}
+}
+
+func TestValidate_Methods_MaxItems(t *testing.T) {
+	// maxItems:32 — at 32 should pass, at 33 should fail.
+	method := `{"name":"r","when_applicable":"w","how":"h"}`
+	pass := strings.TrimSuffix(strings.Repeat(method+",", 32), ",")
+	if err := Validate([]byte(minimalV02(`"methods":[` + pass + `]`))); err != nil {
+		t.Errorf("32 methods should pass, got: %v", err)
+	}
+	fail := strings.TrimSuffix(strings.Repeat(method+",", 33), ",")
+	if err := Validate([]byte(minimalV02(`"methods":[` + fail + `]`))); err == nil {
+		t.Error("33 methods should fail, got nil")
+	}
+}
+
+// ---- attempts[].confidence ----
+
+func TestValidate_AttemptConfidence_EnumRejection(t *testing.T) {
+	// Enum is low | medium | high — anything else is a spec violation, not a
+	// hint the validator should be clever about. A typoed "med" must fail.
+	cases := []string{"medium-high", "HIGH", "med", "0.9", "", "none"}
+	for _, c := range cases {
+		t.Run(c, func(t *testing.T) {
+			raw := minimalV02(`"attempts":[{"tried":"t","outcome":"failed","confidence":"` + c + `"}]`)
+			err := Validate([]byte(raw))
+			if err == nil {
+				t.Fatalf("expected schema violation for confidence=%q, got nil", c)
+			}
+			if !strings.Contains(err.Error(), "schema violation") {
+				t.Errorf("expected schema violation, got: %v", err)
+			}
+		})
+	}
+}
+
+func TestValidate_AttemptOutcome_EnumRejection(t *testing.T) {
+	// Outcome existed in v0.1 but the enum is load-bearing for the v0.2
+	// resume-block rendering logic (filterAttempts routes by outcome string).
+	// Regressions here would quietly bucket attempts into the wrong section.
+	raw := minimalV02(`"attempts":[{"tried":"t","outcome":"maybe"}]`)
+	if err := Validate([]byte(raw)); err == nil {
+		t.Fatal("expected schema violation for bogus outcome, got nil")
+	}
+}
+
+// ---- v0.2 field shape ----
+
+func TestValidate_ParentID_Length(t *testing.T) {
+	cases := []struct {
+		name     string
+		parentID string
+		wantPass bool
+	}{
+		{"too-short", "abc", false},
+		{"min-length", strings.Repeat("a", 10), true},
+		{"typical-ulid", "01JABCDEF9999999999AAAAAAA", true},
+		{"max-length", strings.Repeat("a", 64), true},
+		{"too-long", strings.Repeat("a", 65), false},
+		{"empty", "", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			raw := minimalV02(`"parent_id":"` + tc.parentID + `"`)
+			err := Validate([]byte(raw))
+			if tc.wantPass && err != nil {
+				t.Errorf("expected parent_id=%q to pass, got: %v", tc.parentID, err)
+			}
+			if !tc.wantPass && err == nil {
+				t.Errorf("expected parent_id=%q to fail, got nil", tc.parentID)
+			}
+		})
+	}
+}
+
+func TestValidate_SuccessCriteria_Bounds(t *testing.T) {
+	// maxItems:16 — over the cap must fail. A very long item must also fail.
+	items := make([]string, 0, 17)
+	for i := 0; i < 17; i++ {
+		items = append(items, `"crit"`)
+	}
+	raw := minimalV02(`"success_criteria":[` + strings.Join(items, ",") + `]`)
+	if err := Validate([]byte(raw)); err == nil {
+		t.Error("expected 17 success_criteria to fail maxItems, got nil")
+	}
+
+	long := `"` + strings.Repeat("a", 1025) + `"`
+	raw = minimalV02(`"success_criteria":[` + long + `]`)
+	if err := Validate([]byte(raw)); err == nil {
+		t.Error("expected oversized success_criteria item to fail maxLength, got nil")
+	}
+}
+
+func TestValidate_Decisions_Consequences_MaxLength(t *testing.T) {
+	long := strings.Repeat("x", 1025)
+	raw := minimalV02(`"decisions":[{"what":"w","why":"y","consequences":"` + long + `"}]`)
+	if err := Validate([]byte(raw)); err == nil {
+		t.Error("expected oversized consequences to fail maxLength, got nil")
+	}
+}
+
+// ---- redaction coverage of v0.2 fields ----
+
+func TestRedact_ScansV02Fields(t *testing.T) {
+	// New text-bearing fields must go through the same redaction scan as
+	// v0.1 fields — otherwise a secret hidden in a method 'how' slips past
+	// the pre-push check that protects users from leaking credentials.
+	secret := "/Users/alice/secret"
+	p := &Packet{
+		LTMVersion:      "0.2",
+		ID:              validID,
+		Goal:            "g",
+		NextStep:        "n",
+		SuccessCriteria: []string{"criterion " + secret},
+		Decisions: []Decision{
+			{What: "w", Why: "y", Consequences: "consequences " + secret},
+		},
+		Methods: []Method{
+			{Name: "m", WhenApplicable: "when " + secret, How: "how " + secret},
+		},
+	}
+	issues := Redact(p)
+	wantFields := []string{
+		"success_criteria[0]/abs-path",
+		"decisions[0].consequences/abs-path",
+		"methods[0].when_applicable/abs-path",
+		"methods[0].how/abs-path",
+	}
+	got := map[string]bool{}
+	for _, issue := range issues {
+		got[issue.Kind] = true
+	}
+	for _, want := range wantFields {
+		if !got[want] {
+			t.Errorf("expected redaction issue on field %q, issues were: %+v", want, issues)
+		}
+	}
+}
+
+func TestRedact_SkipsMethodName(t *testing.T) {
+	// Method names are constrained to lowercase kebab-case by schema, so they
+	// cannot carry paths or tokens. Scanning them would only produce noise —
+	// this test pins that we're intentionally not scanning it.
+	p := &Packet{
+		LTMVersion: "0.2",
+		ID:         validID,
+		Goal:       "g",
+		NextStep:   "n",
+		Methods: []Method{
+			{Name: "refresh-login", WhenApplicable: "w", How: "h"},
+		},
+	}
+	for _, issue := range Redact(p) {
+		if strings.HasPrefix(issue.Kind, "methods[0].name") {
+			t.Errorf("method name should not be scanned, but got: %+v", issue)
+		}
+	}
+}

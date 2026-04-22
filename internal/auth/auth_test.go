@@ -174,6 +174,48 @@ func TestSaveToken_CreatesMissingDir(t *testing.T) {
 	}
 }
 
+func TestCredentialsPath_LTMConfigDirWins(t *testing.T) {
+	// LTM_CONFIG_DIR takes precedence over XDG_CONFIG_HOME. Flipping these
+	// would silently relocate credentials for anyone using both.
+	t.Setenv("LTM_CONFIG_DIR", "/tmp/ltm-explicit")
+	t.Setenv("XDG_CONFIG_HOME", "/tmp/xdg-should-be-ignored")
+	got, err := CredentialsPath()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := filepath.Join("/tmp/ltm-explicit", "credentials")
+	if got != want {
+		t.Errorf("CredentialsPath = %q, want %q", got, want)
+	}
+}
+
+func TestCredentialsPath_XDGConfigHomeFallback(t *testing.T) {
+	// With LTM_CONFIG_DIR unset, XDG_CONFIG_HOME + "/ltm" is the next hop.
+	t.Setenv("LTM_CONFIG_DIR", "")
+	t.Setenv("XDG_CONFIG_HOME", "/tmp/xdg-home")
+	got, err := CredentialsPath()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := filepath.Join("/tmp/xdg-home", "ltm", "credentials")
+	if got != want {
+		t.Errorf("CredentialsPath = %q, want %q", got, want)
+	}
+}
+
+func TestCredentialsPath_HomeFallback(t *testing.T) {
+	// Neither env var set → ~/.config/ltm/credentials.
+	t.Setenv("LTM_CONFIG_DIR", "")
+	t.Setenv("XDG_CONFIG_HOME", "")
+	got, err := CredentialsPath()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasSuffix(got, filepath.Join(".config", "ltm", "credentials")) {
+		t.Errorf("CredentialsPath = %q, want suffix .config/ltm/credentials", got)
+	}
+}
+
 func TestHashToken_MatchesKnownValue(t *testing.T) {
 	// Lock in a known hash so accidental changes to HashToken (e.g. switching
 	// algorithms) are caught immediately.
