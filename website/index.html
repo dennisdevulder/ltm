@@ -273,6 +273,7 @@
     </a>
     <div class="nav-links">
       <a href="#spec">§spec</a>
+      <a href="#mcp">§mcp</a>
       <a href="#install">§install</a>
       <a href="https://github.com/dennisdevulder/ltm">github↗</a>
     </div>
@@ -346,7 +347,9 @@
       The CLI wraps those two verbs with ergonomic helpers — <span class="m">auth</span>,
       <span class="m">ls</span>, <span class="m">show</span>, <span class="m">rm</span>,
       <span class="m">resume</span>, <span class="m">example</span>, <span class="m">update</span>,
-      and a self-hostable <span class="m">server</span>. None of them extend the protocol.
+      a self-hostable <span class="m">server</span>, and <span class="m">mcp</span> — a
+      Model Context Protocol stdio server that exposes the same verbs as tools to
+      any MCP-aware agent. None of them extend the protocol.
     </p>
   </section>
 
@@ -505,19 +508,49 @@ ltm example --resume">[copy]</button></div>
       </div>
   </section>
 
-  <!-- ————— 7. Install ————— -->
+  <!-- ————— 7. MCP integration ————— -->
+  <section class="sec col" id="mcp">
+    <h2 class="sec-n">§ 7. MCP integration</h2>
+    <h3 class="sec-t">Wire it into your agent.</h3>
+    <p class="packet-intro">
+      <span class="m">ltm mcp</span> is a Model Context Protocol server over stdio.
+      Register it once — your agent calls <span class="m">resume</span>,
+      <span class="m">ls</span>, <span class="m">show</span>, <span class="m">push</span>,
+      <span class="m">pull</span>, <span class="m">rm</span>, <span class="m">example</span>,
+      and <span class="m">whoami</span> as tools, with no paste step.
+    </p>
+    <div class="term">
+        <div class="t-head"><span>sh · claude code</span><button class="t-copy" data-copy="claude mcp add ltm -- ltm mcp">[copy]</button></div>
+        <pre class="t-body">
+          <div><span class="t-prompt">$ </span>claude mcp add ltm -- ltm mcp</div>
+          <div class="t-comment"># registered. ask your agent to resume — it picks the bundled example</div>
+          <div class="t-comment"># packet and continues the work, no id needed.</div>
+        </pre>
+      </div>
+
+    <p class="install-note">Cursor, Zed, Claude Desktop, Continue — drop this into the client's MCP config:</p>
+
+    <div class="term">
+        <div class="t-head"><span>mcp.json</span><button class="t-copy" data-copy='{ "ltm": { "command": "ltm", "args": ["mcp"] } }'>[copy]</button></div>
+        <pre class="t-body">
+          <div>{ <span style="color:#ff5c1c">"ltm"</span>: { <span style="color:#ff5c1c">"command"</span>: <span>"ltm"</span>, <span style="color:#ff5c1c">"args"</span>: [<span>"mcp"</span>] } }</div>
+        </pre>
+      </div>
+  </section>
+
+  <!-- ————— 8. Install ————— -->
   <section class="sec col" id="install">
-    <h2 class="sec-n">§ 7. Reference implementation</h2>
+    <h2 class="sec-n">§ 8. Reference implementation</h2>
     <h3 class="sec-t">Install the CLI.</h3>
     <div class="term">
         <div class="t-head"><span>sh · client</span><button class="t-copy" data-copy="curl -fsSL https://ltm-cli.dev/install | sh
 ltm auth https://your-server.dev &lt;token&gt;
-ltm pull &lt;packet-id&gt;">[copy]</button></div>
+ltm resume">[copy]</button></div>
         <pre class="t-body">
           <div><span class="t-prompt">$ </span>curl -fsSL https://ltm-cli.dev/install | sh</div>
           <div><span class="t-prompt">$ </span>ltm auth https://your-server.dev &lt;token&gt;</div>
-          <div><span class="t-prompt">$ </span>ltm pull &lt;packet-id&gt;</div>
-          <div class="t-comment"># session restored. your agent takes it from here.</div>
+          <div><span class="t-prompt">$ </span>ltm resume</div>
+          <div class="t-comment"># arrow keys to pick a packet. block copied to clipboard — paste into any agent.</div>
         </pre>
       </div>
 
