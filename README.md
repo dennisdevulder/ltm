@@ -52,7 +52,10 @@ ltm server --addr :8080
 ### On any client machine
 
 ```bash
-ltm auth http://your-vps:8080 <paste-root-token>
+# Sign in. Three forms:
+ltm auth                                  # managed hub (platform.ltm-cli.dev) via OAuth device flow
+ltm auth http://your-vps:8080             # self-hosted server via OAuth device flow
+ltm auth http://your-vps:8080 <token>     # self-hosted server, paste a pre-issued bearer token
 
 # Write a packet (see SPEC.md for the shape), then push it.
 ltm push my-packet.json
@@ -64,6 +67,12 @@ ltm ls
 ltm show <id>
 ltm pull <id>     # raw JSON to stdout
 ltm rm <id>
+
+# Resume the latest packet you pushed.
+ltm resume
+
+# Upgrade the CLI in place.
+ltm update
 ```
 
 ### Issue more tokens
@@ -76,14 +85,14 @@ ltm server issue-token ci
 
 ## What's in the box today
 
-- **CLI**: `auth`, `config`, `push`, `pull`, `ls`, `show`, `rm`, `server`, `server init`, `server issue-token`.
+- **CLI**: `auth` (+ `whoami`), `config` (`set`/`get`/`unset`/`list`/`edit`/`path`), `push`, `pull`, `ls`, `show`, `rm`, `resume`, `update`, `server` (+ `init`/`issue-token`).
 - **Server**: single Go binary, SQLite storage, bearer-token auth, ~150 lines of HTTP handlers.
 - **Validation**: JSON Schema for the Core Memory Packet, embedded in the binary.
 - **Redaction pre-flight**: rejects packets containing absolute paths, AWS keys, GitHub tokens, JWTs, or private keys before they leave your machine. Override with `--allow-unredacted`.
+- **OAuth device flow**: `ltm auth` with no args signs into the managed hub via RFC 8628 — no copy-pasting tokens.
 
 ## What's not here yet
 
-- OAuth device flow (today: paste-a-token).
 - MCP server (planned — a natural follow-up).
 - Packet chaining, sharing, team spaces, federation.
 - A real test suite. (Smoke test works; full coverage is TODO.)
