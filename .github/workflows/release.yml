@@ -1,9 +1,24 @@
 name: release
 
+# Runs GoReleaser for:
+#   1. Manually-pushed tags (`git tag vX.Y.Z && git push origin vX.Y.Z`).
+#   2. Manual workflow dispatch (handy for backfilling assets onto an existing
+#      release, e.g. when release-please created a release but its chained
+#      goreleaser step didn't run).
+#
+# The primary automated path (release-please -> goreleaser) lives in
+# release-please.yml. This workflow stays as a manual fallback / escape hatch.
+
 on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g. v0.7.0). Leave blank to use the ref.'
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -16,6 +31,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -26,7 +42,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
-          version: latest
+          version: '~> v2'
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
