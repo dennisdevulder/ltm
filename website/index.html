@@ -257,6 +257,7 @@
     <div class="nav-links">
       <a href="#spec">§spec</a>
       <a href="#mcp">§mcp</a>
+      <a href="#redaction">§redaction</a>
       <a href="#install">§install</a>
       <a href="https://platform.ltm-cli.dev/">platform↗</a>
       <a href="https://github.com/dennisdevulder/ltm">github↗</a>
@@ -465,9 +466,59 @@ per packet</div></div>
     </p>
   </section>
 
-  <!-- ————— 5. Scope ————— -->
+  <!-- ————— 5. Redaction ————— -->
+  <section class="sec col" id="redaction">
+    <h2 class="sec-n">§ 5. Redaction pre-flight</h2>
+    <h3 class="sec-t">Packets travel. Secrets don't.</h3>
+    <p class="packet-intro">
+      A protocol whose core promise is "packets travel" has to take seriously
+      what travels with them. Every packet is scanned on the client, before the
+      first network call, and any hit blocks the push. The author can override
+      with <span class="m">--allow-unredacted</span>, but they have to say so
+      out loud.
+    </p>
+    <div class="scope">
+      <div class="in">
+        <h5>BLOCKED BEFORE UPLOAD</h5>
+        <ul>
+          <li><span class="m">×</span>Absolute paths (<span class="m">/Users/…</span>, <span class="m">/home/…</span>, <span class="m">C:\…</span>)</li>
+          <li><span class="m">×</span>AWS access keys (<span class="m">AKIA</span> prefix)</li>
+          <li><span class="m">×</span>GitHub tokens (<span class="m">ghp_</span>, <span class="m">gho_</span>, <span class="m">ghu_</span>, <span class="m">ghs_</span>, <span class="m">ghr_</span>)</li>
+          <li><span class="m">×</span>JWTs (three base64url segments, JOSE header)</li>
+          <li><span class="m">×</span>Private-key headers (<span class="m">BEGIN … PRIVATE KEY</span>)</li>
+          <li><span class="m">×</span>Google API keys (<span class="m">AIza…</span>)</li>
+          <li><span class="m">×</span>Slack tokens (<span class="m">xox[abp]-…</span>)</li>
+          <li><span class="m">×</span>Stripe keys (<span class="m">sk_live_…</span>, <span class="m">rk_live_…</span>)</li>
+          <li><span class="m">×</span>SSH public keys</li>
+        </ul>
+      </div>
+      <div class="out">
+        <h5>SCANNED SURFACE</h5>
+        <ul>
+          <li><span class="m">·</span><span class="m">goal</span>, <span class="m">next_step</span></li>
+          <li><span class="m">·</span><span class="m">constraints[]</span></li>
+          <li><span class="m">·</span><span class="m">decisions[].what</span>, <span class="m">.why</span></li>
+          <li><span class="m">·</span><span class="m">attempts[].tried</span>, <span class="m">.learned</span></li>
+          <li><span class="m">·</span><span class="m">open_questions[]</span></li>
+          <li><span class="m">·</span>Structure fields (IDs, timestamps, version) are not content and are not scanned.</li>
+        </ul>
+      </div>
+    </div>
+    <p class="note">
+      This is a load-bearing trust property, not a checkbox. Packets are meant
+      to move between machines, teams, and agents; the person writing a packet
+      is not always the person reading it. The scanner is designed to be noisy
+      rather than quiet: block a legitimate push and make the caller opt in,
+      rather than silently leak a credential. Implementation and test vectors
+      live in <span class="m">internal/packet/redact.go</span>. A second
+      implementation of the protocol MUST ship this pre-flight before its
+      first network call.
+    </p>
+  </section>
+
+  <!-- ————— 6. Scope ————— -->
   <section class="sec col">
-    <h2 class="sec-n">§ 5. Scope</h2>
+    <h2 class="sec-n">§ 6. Scope</h2>
     <h3 class="sec-t">In scope / out of scope.</h3>
     <div class="scope">
       <div class="in">
@@ -489,9 +540,9 @@ per packet</div></div>
     </div>
   </section>
 
-  <!-- ————— 6. Test drive ————— -->
+  <!-- ————— 7. Test drive ————— -->
   <section class="sec col" id="testdrive">
-    <h2 class="sec-n">§ 6. Test drive</h2>
+    <h2 class="sec-n">§ 7. Test drive</h2>
     <h3 class="sec-t">Sixty seconds, no server required.</h3>
     <p class="packet-intro">
       Install the CLI, grab the bundled example packet onto your clipboard, and paste it
