@@ -484,9 +484,30 @@ per packet</div></div>
     </div>
   </section>
 
-  <!-- ————— 6. Install ————— -->
+  <!-- ————— 6. Test drive ————— -->
+  <section class="sec col" id="testdrive">
+    <h2 class="sec-n">§ 6. Test drive</h2>
+    <h3 class="sec-t">Sixty seconds, no server required.</h3>
+    <p class="packet-intro">
+      Install the CLI, grab the bundled example packet onto your clipboard, paste it
+      into any agent session, and watch it pick up where a prior session left off —
+      rewriting the example email in <span class="m">ltm-example</span>.
+    </p>
+    <div class="term">
+        <div class="t-head"><span>sh</span><button class="t-copy" data-copy="curl -fsSL https://ltm-cli.dev/install | sh
+ltm example --resume">[copy]</button></div>
+        <pre class="t-body">
+          <div><span class="t-prompt">$ </span>curl -fsSL https://ltm-cli.dev/install | sh</div>
+          <div><span class="t-prompt">$ </span>ltm example --resume</div>
+          <div class="t-comment"># ✓ Copied the example packet to your clipboard.</div>
+          <div class="t-comment"># paste into your agent session — it resumes the work mid-thought.</div>
+        </pre>
+      </div>
+  </section>
+
+  <!-- ————— 7. Install ————— -->
   <section class="sec col" id="install">
-    <h2 class="sec-n">§ 6. Reference implementation</h2>
+    <h2 class="sec-n">§ 7. Reference implementation</h2>
     <h3 class="sec-t">Install the CLI.</h3>
     <div class="term">
         <div class="t-head"><span>sh · client</span><button class="t-copy" data-copy="curl -fsSL https://ltm-cli.dev/install | sh
