@@ -156,17 +156,17 @@ A packet is a single JSON document. Minimum useful size: ~500 bytes. Typical: 2â
 A conforming v0.2 packet:
 
 - Declares `ltm_version: "0.2"`.
-- Validates against [`schema/core-memory.v0.2.json`](./schema/core-memory.v0.2.json).
-- Passes the redaction pre-flight: no absolute paths, no strings matching common secret patterns, no strings longer than their field's `maxLength` (1024 chars for most; 2048 for `method.how`).
+- Validates against [`schema/core-memory.v0.2.json`](./schema/core-memory.v0.2.json). Serialized packets MUST NOT exceed 32 KB.
+- Passes the redaction pre-flight: the visible text fields (`goal`, `next_step`, `success_criteria`, `constraints`, `decisions.what`, `decisions.why`, `decisions.consequences`, `methods.when_applicable`, `methods.how`, `attempts.tried`, `attempts.learned`, `open_questions`) are scanned for absolute paths and common secret patterns (AWS keys, GitHub tokens, JWTs, private keys, Stripe/Slack/Google API tokens, SSH public keys). Any hit blocks the push unless the caller opts in via `--allow-unredacted`. No string exceeds its field's `maxLength` (1024 chars for most; 2048 for `method.how`).
 - Is idempotent: re-emitting the same session state produces byte-identical packets (modulo `id` and `created_at`).
 
 Non-conforming packets MAY be accepted by a server in lenient mode but MUST be flagged.
 
 ## Versioning
 
-- Major version bumps are breaking.
-- Minor versions add optional fields only.
-- `ltm_version` is required on every packet and must match one of the versions the receiving server knows how to validate.
+`ltm_version` is required on every packet and MUST match `\d+\.\d+`. Major bumps are breaking; minor bumps add optional fields only.
+
+The reference implementation routes by declared version: a v0.1 packet is validated against the v0.1 schema, a v0.2 packet against v0.2. Packets whose declared `ltm_version` the receiver does not recognize are rejected with a clear error rather than silently degraded. Writers MUST NOT assume older peers will accept forward-version packets.
 
 Servers SHOULD implement every minor version they claim support for. A v0.2 server that receives a v0.1 packet should accept it if it retains the v0.1 schema (the reference Go server does).
 

@@ -23,3 +23,8 @@ jobs:
 
       - name: go test
         run: go test ./...
+
+      - name: install.sh POSIX syntax check
+        run: |
+          dash -n install.sh
+          shellcheck --shell=sh install.sh
