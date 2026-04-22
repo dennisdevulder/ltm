@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <title>ltm · portable context for AI work sessions</title>
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<meta name="description" content="ltm is an open, self-hosted protocol for portable AI session memory. Ship intent between machines and models." />
+<meta name="description" content="ltm: an open, self-hosted protocol for portable AI session memory. Git captures what a project is; ltm captures what it ran into." />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -268,8 +268,10 @@
     <div class="meta">LTM-SPEC-0001 · 2026-04-21</div>
     <h1>Portable understanding<br>for AI work sessions.</h1>
     <p class="lede">
-      Ship intent between machines and models, not configuration. One packet,
-      two verbs. Self-hosted. Model-agnostic. Open.
+      Git captures what a project is. ltm captures what it ran into: the dead ends,
+      the decisions with no code artifact, the constraints that shaped the current
+      code without appearing in it. A one-file, two-verb protocol. Self-hosted.
+      Model-agnostic. Open.
     </p>
 
     <div class="frontmatter">
@@ -300,13 +302,19 @@
     <h2 class="sec-n">§ 1. Abstract</h2>
     <h3 class="sec-t">Why this exists.</h3>
     <div class="abstract">
-      You hit a wall on your Mac. The GPU story doesn't work. You pivot to a Fedora box, spin up a new
-      agent, and spend an hour re-explaining what you've tried, what you ruled out, and why. The model
-      makes the same mistakes you already solved for.
+      Most of a project's state lives in the repo. The commits carry what the code is,
+      and any agent you hand the repo to can read that. What the repo does not carry is
+      what you ran into on the way there: the dead ends that left no artifact, the
+      decisions you argued out and cannot reconstruct from the diff, the constraints that
+      shaped the current code without appearing in it. That part evaporates every time
+      the harness changes. Three months on Claude Code, you try Codex. Next quarter it is
+      Cursor, or Windsurf, or Zed. Each harness wants its own instruction file (CLAUDE.md,
+      .cursorrules, AGENTS.md) and none of them were written to move. Same erasure when
+      the machine changes, for the same reason: intent was never separated from setup.
     </div>
     <p class="abstract-conclusion">
-      ltm fixes exactly that<span class="acc">.</span>
-      <span class="dim">And nothing else.</span>
+      Git has the diffs<span class="acc">.</span>
+      <span class="dim">ltm has the reasons they look the way they do.</span>
     </p>
   </section>
 
@@ -376,9 +384,12 @@
   <!-- ————— 4. Core Memory Packet ————— -->
   <section class="sec col">
     <h2 class="sec-n">§ 4. Core Memory Packet</h2>
-    <h3 class="sec-t">A single JSON object.</h3>
+    <h3 class="sec-t">An obstacle dossier, not a session log.</h3>
     <p class="packet-intro">
-      Five required fields. Six recommended. Forward-compatible. Every field earns its byte.
+      A packet describes one bump in the road that warranted capture: the goal,
+      the decisions that locked in, the approaches that failed, the next concrete
+      step. Five required fields. Six recommended. Forward-compatible. Every field
+      earns its byte.
     </p>
     <div class="packet-grid">
       <div class="packet-code">
@@ -445,6 +456,13 @@ per packet</div></div>
         <a class="schema" href="https://github.com/dennisdevulder/ltm/blob/main/SPEC.md">[ full schema → ]</a>
       </div>
     </div>
+    <p class="note">
+      Read <span class="m">attempts</span> as "approaches that failed and shaped the
+      current decision," not "things I did." A packet is not a changelog. The 90% of work
+      that went smoothly never needs a packet, because the commits already carry that
+      state. Only the shaped-by-a-constraint stuff needs portable intent, because that is
+      the part a fresh agent cannot reconstruct from the repo.
+    </p>
   </section>
 
   <!-- ————— 5. Scope ————— -->
