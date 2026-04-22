@@ -3,6 +3,7 @@ package cli
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -323,39 +324,28 @@ func toolLs(raw json.RawMessage) (string, error) {
 	if len(raw) > 0 {
 		_ = json.Unmarshal(raw, &args)
 	}
-	if args.Limit <= 0 {
+	switch {
+	case args.Limit <= 0:
 		args.Limit = 50
+	case args.Limit > 200:
+		// Match the inputSchema's `maximum` so an LLM that ignores the
+		// schema can't ask for an unbounded scan.
+		args.Limit = 200
 	}
 	cl, err := newClient()
 	if err != nil {
 		return "", err
 	}
-	resp, err := cl.do("GET", fmt.Sprintf("/v1/packets?limit=%d", args.Limit), nil)
+	_, rows, err := fetchPacketList(cl, args.Limit)
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
-	if err := errFromResponse(resp); err != nil {
-		return "", err
-	}
-	body, _ := io.ReadAll(resp.Body)
-
-	var parsed struct {
-		Packets []struct {
-			ID        string `json:"id"`
-			CreatedAt string `json:"created_at"`
-			Goal      string `json:"goal"`
-		} `json:"packets"`
-	}
-	if err := json.Unmarshal(body, &parsed); err != nil {
-		return "", err
-	}
-	if len(parsed.Packets) == 0 {
+	if len(rows) == 0 {
 		return "No packets on server.", nil
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "%-28s  %-25s  %s\n", "ID", "CREATED", "GOAL")
-	for _, p := range parsed.Packets {
+	for _, p := range rows {
 		goal := p.Goal
 		if len(goal) > 72 {
 			goal = goal[:72] + "…"
@@ -444,7 +434,7 @@ func toolPush(raw json.RawMessage) (string, error) {
 				fmt.Fprintf(&b, "  - %s\n", i.String())
 			}
 			b.WriteString("pass allow_unredacted=true to override.")
-			return "", fmt.Errorf("%s", b.String())
+			return "", errors.New(b.String())
 		}
 	}
 
