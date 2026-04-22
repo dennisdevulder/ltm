@@ -12,6 +12,7 @@ import (
 
 	"github.com/dennisdevulder/ltm/internal/auth"
 	"github.com/dennisdevulder/ltm/internal/config"
+	ltmschema "github.com/dennisdevulder/ltm/schema"
 )
 
 var Version = "0.1.0-dev"
@@ -21,7 +22,7 @@ func NewRootCmd() *cobra.Command {
 		Use:          "ltm",
 		Short:        "Portable understanding for AI work sessions.",
 		Long:         "ltm moves the intent and state of a work session between machines, models, and agents — without dragging along your configuration.",
-		Version:      Version,
+		Version:      fmt.Sprintf("%s (protocol %s)", Version, ltmschema.Current),
 		SilenceUsage: true,
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			maybeWarnAboutUpdate(cmd)
