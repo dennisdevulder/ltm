@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>ltm-cli.dev — privacy notice</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="description" content="Privacy notice for ltm-cli.dev — the static landing site for the ltm protocol." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #0b0b0a;
+    --paper:     #100f0d;
+    --fg:        #e8e6df;
+    --dim:       rgba(232,230,223,.55);
+    --dimmer:    rgba(232,230,223,.30);
+    --rule:      rgba(232,230,223,.10);
+    --accent:    #ff5c1c;
+    --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    --sans: "Geist", -apple-system, system-ui, sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--fg); font-family: var(--mono); font-size: 15px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+  a { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+  .col { max-width: 760px; margin: 0 auto; padding: 0 48px; }
+  .nav { display: flex; align-items: center; justify-content: space-between; height: 60px; border-bottom: 1px solid var(--rule); }
+  .nav-brand { font-size: 14px; display: flex; align-items: center; gap: 10px; }
+  .nav-brand .glyph { color: var(--accent); }
+  .nav-brand b { font-weight: 600; }
+  .nav-brand .sch { color: var(--dimmer); }
+  .nav-links { display: flex; gap: 24px; font-size: 13px; color: var(--dim); }
+  .nav-links a { color: var(--dim); text-decoration: none; }
+
+  .kicker { font-size: 12px; color: var(--dimmer); letter-spacing: .5px; margin: 48px 0 4px; text-transform: uppercase; }
+  h1 { font-family: var(--sans); font-size: 40px; letter-spacing: -1px; font-weight: 500; margin: 0 0 28px; line-height: 1.1; }
+
+  .frontmatter { border: 1px solid var(--rule); background: var(--paper); margin-bottom: 36px; }
+  .fm-row { display: grid; grid-template-columns: 160px 1fr; font-size: 13px; }
+  .fm-row + .fm-row { border-top: 1px solid var(--rule); }
+  .fm-k { padding: 10px 16px; color: var(--dimmer); border-right: 1px solid var(--rule); letter-spacing: .3px; }
+  .fm-v { padding: 10px 16px; color: var(--fg); }
+
+  .kicker-h2 { font-size: 14px; color: var(--accent); letter-spacing: .6px; margin: 48px 0 4px; text-transform: uppercase; }
+  h2 { font-family: var(--sans); font-size: 24px; letter-spacing: -.3px; font-weight: 500; margin: 0 0 16px; }
+  p { font-family: var(--sans); font-size: 15px; color: var(--dim); margin: 0 0 16px; line-height: 1.6; }
+  ul { font-family: var(--sans); font-size: 15px; color: var(--dim); margin: 0 0 16px; padding-left: 20px; }
+  ul li { margin-bottom: 8px; line-height: 1.6; }
+  b { color: var(--fg); font-weight: 500; }
+  .mono { font-family: var(--mono); font-size: 13px; color: var(--fg); }
+
+  footer { padding: 48px 0 80px; border-top: 1px solid var(--rule); font-size: 12px; color: var(--dimmer); margin-top: 48px; }
+  footer a { color: var(--dim); }
+
+  @media (max-width: 760px) {
+    .col { padding: 0 24px; }
+    h1 { font-size: 28px; }
+    .fm-row { grid-template-columns: 100px 1fr; }
+  }
+</style>
+</head>
+<body>
+  <nav class="nav col">
+    <a class="nav-brand" href="./" aria-label="ltm — home">
+      <span class="glyph">▚</span><b>ltm</b><span class="sch">://</span>
+    </a>
+    <div class="nav-links">
+      <a href="./">home</a>
+      <a href="https://github.com/dennisdevulder/ltm">github↗</a>
+    </div>
+  </nav>
+
+  <main class="col">
+    <div class="kicker">LTM-CLI-DEV-PRIV-0001 · 2026-04-22</div>
+    <h1>Privacy notice.</h1>
+
+    <div class="frontmatter">
+      <div class="fm-row"><div class="fm-k">SITE</div>        <div class="fm-v">ltm-cli.dev (static GitHub Pages landing)</div></div>
+      <div class="fm-row"><div class="fm-k">CONTROLLER</div>  <div class="fm-v">Dennis de Vulder · Utrecht, NL</div></div>
+      <div class="fm-row"><div class="fm-k">CONTACT</div>     <div class="fm-v">privacy@ltm-cli.dev</div></div>
+      <div class="fm-row"><div class="fm-k">LAW</div>         <div class="fm-v">Dutch law · EU jurisdiction</div></div>
+      <div class="fm-row"><div class="fm-k">LAST UPDATE</div> <div class="fm-v">2026-04-22</div></div>
+    </div>
+
+    <div class="kicker-h2">§ 1</div>
+    <h2>What this page is</h2>
+    <p>This is a one-page privacy notice for <span class="mono">ltm-cli.dev</span>, the static landing page and install-script host for the ltm protocol. The managed platform at <span class="mono">platform.ltm-cli.dev</span> has its own, fuller privacy policy — this page does not cover it.</p>
+
+    <div class="kicker-h2">§ 2</div>
+    <h2>What the site does</h2>
+    <p>Serves static HTML and the <span class="mono">install.sh</span> shell script. No accounts, no forms, no backend. The only runtime network traffic is your browser fetching fonts from Google Fonts and — if you opt in — Google Analytics.</p>
+
+    <div class="kicker-h2">§ 3</div>
+    <h2>Cookies and analytics</h2>
+    <p>We run Google Analytics 4 (property <span class="mono">G-GPMG1DLW28</span>) with IP anonymisation and Consent Mode v2. Analytics cookies and identifiers are <b>denied by default</b> and only set after you click <i>Accept</i> on the consent banner. If you decline, gtag still loads but produces no persisted identifiers and no analytics hits.</p>
+    <ul>
+      <li><b>Legal basis:</b> consent — GDPR Art. 6(1)(a), ePrivacy Art. 5(3). Your opt-in is stored as <span class="mono">localStorage['ltm_ga_consent']</span>, which you can clear at any time in your browser settings.</li>
+      <li><b>Data sent (if you consent):</b> page URL, referrer, screen size, browser user-agent, truncated IP (anonymised). No account data, because there is no account.</li>
+      <li><b>Processor:</b> Google Ireland Ltd. Transfer to the US is governed by the EU–US Data Privacy Framework.</li>
+      <li><b>Retention:</b> GA4 default — 14 months on the Google side.</li>
+    </ul>
+
+    <div class="kicker-h2">§ 4</div>
+    <h2>What we do NOT do</h2>
+    <p>No advertising tags, no cross-site trackers, no fingerprinting, no marketing pixels, no CDN-level logging we control. The install-script endpoint <span class="mono">/install</span> is served by GitHub Pages; GitHub's standard access logs apply to that edge.</p>
+
+    <div class="kicker-h2">§ 5</div>
+    <h2>Your rights</h2>
+    <p>Because no account or server-side data is collected on this site, there is nothing for us to access, rectify, export, or erase on your behalf. If you want your GA4 signal removed, clear the <span class="mono">ltm_ga_consent</span> entry from your browser, or email <span class="mono">privacy@ltm-cli.dev</span> and we will ask Google to drop the matching client id. You can always lodge a complaint with a supervisory authority (in the Netherlands: Autoriteit Persoonsgegevens).</p>
+
+    <div class="kicker-h2">§ 6</div>
+    <h2>Changes</h2>
+    <p>Material changes will be noted at the top of this page. The "last update" field above always reflects the current version.</p>
+  </main>
+
+  <footer class="col">
+    <div><a href="./">home</a> · <a href="https://github.com/dennisdevulder/ltm">github</a> · privacy</div>
+    <div style="margin-top:8px">apache-2.0 · static site · analytics via google (consent-gated)</div>
+  </footer>
+</body>
+</html>

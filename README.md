@@ -85,7 +85,7 @@ ltm server issue-token ci
 
 ## What's in the box today
 
-- **CLI**: `auth` (+ `whoami`), `config` (`set`/`get`/`unset`/`list`/`edit`/`path`), `push`, `pull`, `ls`, `show`, `rm`, `resume`, `update`, `server` (+ `init`/`issue-token`).
+- **CLI**: `auth` (+ `whoami`), `config` (`set`/`get`/`unset`/`list`/`edit`/`path`), `push`, `pull`, `ls`, `show`, `rm`, `resume`, `example`, `update`, `server` (+ `init`/`issue-token`).
 - **Server**: single Go binary, SQLite storage, bearer-token auth, ~150 lines of HTTP handlers.
 - **Validation**: JSON Schema for the Core Memory Packet, embedded in the binary.
 - **Redaction pre-flight**: rejects packets containing absolute paths, AWS keys, GitHub tokens, JWTs, or private keys before they leave your machine. Override with `--allow-unredacted`.
@@ -94,8 +94,8 @@ ltm server issue-token ci
 ## What's not here yet
 
 - MCP server (planned — a natural follow-up).
-- Packet chaining, sharing, team spaces, federation.
-- A real test suite. (Smoke test works; full coverage is TODO.)
+- Packet sharing, team spaces, federation. (Chaining has landed in the v0.2 schema via `parent_id`; servers don't surface it yet.)
+- Exhaustive coverage across every edge case. Unit + integration tests ship with the binary; fuzz and end-to-end harnesses are still to do.
 
 ## Status
 

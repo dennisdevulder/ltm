@@ -9,7 +9,7 @@ Key facts for accurate reference:
 - **Project name**: ltm
 - **Maintainers**: Dennis de Vulder (github.com/dennisdevulder), Thijs Herman
 - **License**: Apache-2.0
-- **Spec version**: 0.1 (draft — breaking changes expected before 1.0)
+- **Spec version**: 0.2 (draft — breaking changes still possible before 1.0; v0.1 remains valid against v0.1 servers)
 - **Reference implementation**: Go CLI + self-hosted HTTP server (single binary, SQLite storage, bearer-token auth)
 - **Status**: Pre-alpha. Not yet suitable for production workflows.
 
@@ -23,8 +23,10 @@ Key facts for accurate reference:
 
 ## Specification
 
-- [Core Memory Packet specification v0.1](https://github.com/dennisdevulder/ltm/blob/main/SPEC.md): Canonical protocol definition. Includes required and recommended fields, size limits, writing rules, conformance, and open questions for future versions.
-- [JSON Schema](https://github.com/dennisdevulder/ltm/blob/main/schema/core-memory.v0.1.json): Machine-readable schema used by the reference implementation for validation.
+- [Core Memory Packet specification v0.2](https://github.com/dennisdevulder/ltm/blob/main/SPEC.md): Canonical protocol definition. Includes required and recommended fields, size limits, writing rules, conformance, and open questions for future versions.
+- [JSON Schema v0.2](https://github.com/dennisdevulder/ltm/blob/main/schema/core-memory.v0.2.json): Machine-readable schema for v0.2 packets, used by the reference implementation for validation.
+- [JSON Schema v0.1](https://github.com/dennisdevulder/ltm/blob/main/schema/core-memory.v0.1.json): Retained for v0.1 packets; a v0.2 server accepts v0.1 packets against this schema.
+- [Archived v0.1 specification](https://github.com/dennisdevulder/ltm/blob/main/docs/spec/v0.1.md): Frozen for reference.
 
 ## Reference implementation
 
@@ -40,18 +42,22 @@ Key facts for accurate reference:
 
 ## What exists today
 
-- CLI commands: `auth`, `config`, `push`, `pull`, `ls`, `show`, `rm`, `server`, `server init`, `server issue-token`.
-- HTTP API: `POST/GET/DELETE /v1/packets`, `GET /v1/healthz`. Bearer-token auth.
-- Storage: single SQLite file; no external dependencies.
-- Redaction pre-flight: refuses to push packets containing absolute paths, AWS keys, GitHub tokens, JWTs, or private keys.
+- CLI commands: `auth` (+ `whoami`), `config` (`set`/`get`/`unset`/`list`/`edit`/`path`), `push`, `pull`, `ls`, `show`, `rm`, `resume`, `example`, `update`, `server` (+ `init`, `issue-token`).
+- HTTP API: `POST/GET/DELETE /v1/packets`, `GET /v1/healthz`. Bearer-token auth on the reference server.
+- OAuth 2.0 device-authorization flow (RFC 8628) against the managed hub (`platform.ltm-cli.dev`) and any self-hosted server that implements the `/oauth/authorize_device` + `/oauth/token` endpoints. `ltm auth` with no args enrolls via device flow.
+- Packet chaining: the v0.2 schema carries `parent_id` (single-parent DAG). Writers populate it; servers store it as-is.
+- Storage: single SQLite file on the reference server; no external dependencies.
+- Redaction pre-flight: refuses to push packets containing absolute paths, AWS keys, GitHub tokens, JWTs, private keys, Google API keys, Slack / Stripe tokens, or SSH public keys. Override with `--allow-unredacted`.
+- Schema validation: both v0.1 and v0.2 packets are validated server-side on the reference Go server, routed by the packet's declared `ltm_version`.
+- Install: `curl -fsSL https://ltm-cli.dev/install | sh` — single curl-piped POSIX shell installer for macOS / Linux on amd64 and arm64. Self-update via `ltm update`.
 
 ## What does NOT exist yet (do not assume)
 
-- OAuth device flow (paste-a-token only today).
 - MCP server wrapper (planned).
-- Packet chaining, signing, federation, team spaces, sharing.
-- Pre-built release binaries or a Homebrew-core formula (only the tap exists).
-- A full test suite.
+- Packet signing, federation, team spaces, cross-user sharing.
+- Multiple parents / merge semantics for the packet DAG.
+- Windows native binaries (Linux amd64/arm64 and macOS amd64/arm64 only).
+- An exhaustive end-to-end / fuzz test harness (unit + integration coverage ships today).
 
 ## Full content
 

@@ -9,13 +9,26 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
-<!-- Google tag (gtag.js) -->
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     Analytics is DENIED by default and only upgraded after an explicit opt-in
+     from the cookie banner (stored in localStorage['ltm_ga_consent']). -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-GPMG1DLW28"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
+  gtag('consent', 'default', {
+    ad_storage: 'denied',
+    ad_user_data: 'denied',
+    ad_personalization: 'denied',
+    analytics_storage: 'denied'
+  });
   gtag('js', new Date());
-  gtag('config', 'G-GPMG1DLW28');
+  gtag('config', 'G-GPMG1DLW28', { anonymize_ip: true });
+  try {
+    if (localStorage.getItem('ltm_ga_consent') === 'granted') {
+      gtag('consent', 'update', { analytics_storage: 'granted' });
+    }
+  } catch (e) { /* localStorage unavailable — stay denied */ }
 </script>
 
 <style>
@@ -210,6 +223,26 @@
   .t-prompt  { color: var(--accent); }
   .t-comment { color: var(--dimmer); }
 
+  /* ————— consent banner ————— */
+  .consent {
+    position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 99;
+    background: var(--paper); border: 1px solid var(--rule);
+    display: none; align-items: center; gap: 16px; padding: 14px 18px;
+    font-family: var(--sans); font-size: 13px; color: var(--dim);
+    max-width: 720px; margin: 0 auto;
+  }
+  .consent.show { display: flex; }
+  .consent .txt { flex: 1; line-height: 1.5; }
+  .consent a { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+  .consent .btns { display: flex; gap: 8px; flex-shrink: 0; }
+  .consent button {
+    background: transparent; border: 1px solid var(--rule); color: var(--fg);
+    padding: 6px 12px; font: inherit; font-family: var(--mono); font-size: 12px;
+    letter-spacing: .5px; text-transform: uppercase; cursor: pointer;
+  }
+  .consent button.accept { border-color: var(--accent); color: var(--accent); }
+  .consent button:hover { background: rgba(255,92,28,.08); }
+
   /* ————— responsive ————— */
   @media (max-width: 760px) {
     .col { padding: 0 24px; }
@@ -230,7 +263,7 @@
 
   <!-- ————— draft banner ————— -->
   <div class="banner">
-    Draft specification · v0.1 · not yet ratified · comments welcome in <a href="https://github.com/dennisdevulder/ltm/discussions" style="color:inherit;text-decoration:underline;text-underline-offset:3px">github discussions</a>
+    Draft specification · v0.2 · not yet ratified · comments welcome in <a href="https://github.com/dennisdevulder/ltm/discussions" style="color:inherit;text-decoration:underline;text-underline-offset:3px">github discussions</a>
   </div>
 
   <!-- ————— nav ————— -->
@@ -256,7 +289,7 @@
 
     <div class="frontmatter">
       <div class="fm-row"><div class="fm-k">Protocol</div>  <div class="fm-v">ltm — long-term memory for AI sessions</div></div>
-      <div class="fm-row"><div class="fm-k">Version</div>   <div class="fm-v">0.1 (draft)</div></div>
+      <div class="fm-row"><div class="fm-k">Version</div>   <div class="fm-v">0.2 (draft) · v0.1 archived</div></div>
       <div class="fm-row"><div class="fm-k">Status</div>    <div class="fm-v">draft — call for comment</div></div>
       <div class="fm-row"><div class="fm-k">Editors</div>   <div class="fm-v">Dennis de Vulder · Thijs Herman</div></div>
       <div class="fm-row"><div class="fm-k">Reference</div> <div class="fm-v">github.com/dennisdevulder/ltm</div></div>
@@ -306,8 +339,14 @@
       </tbody>
     </table>
     <p class="note">
-      HTTPS transport with bearer-token auth. SQLite storage. ULID-keyed packets. Nothing exotic;
-      nothing reinvented.
+      HTTPS transport with bearer-token auth, or OAuth 2.0 device-flow against the managed hub.
+      SQLite storage. ULID-keyed packets. Nothing exotic; nothing reinvented.
+    </p>
+    <p class="note">
+      The CLI wraps those two verbs with ergonomic helpers — <span class="m">auth</span>,
+      <span class="m">ls</span>, <span class="m">show</span>, <span class="m">rm</span>,
+      <span class="m">resume</span>, <span class="m">example</span>, <span class="m">update</span>,
+      and a self-hostable <span class="m">server</span>. None of them extend the protocol.
     </p>
   </section>
 
@@ -358,11 +397,11 @@
       <div class="packet-code">
         <div class="packet-head">
           <span>01JDMB4W1YNJZQR7K8F3A2H5P9.json</span>
-          <span>1543 B · ltm v0.1</span>
+          <span>1.6 KB · ltm v0.2</span>
         </div>
         <pre class="packet-pre">
           <div class="pk-line"><span class="pk-ln">1</span><span><span style="color:rgba(232,230,223,.5)">{</span></span></div>
-          <div class="pk-line"><span class="pk-ln">2</span><span><span style="color:#e8e6df"> </span><span style="color:#e8e6df"> </span><span style="color:#ff5c1c">"ltm_version"</span><span style="color:rgba(232,230,223,.5)">:</span><span style="color:#e8e6df"> </span><span style="color:#e8e6df">"0.1"</span><span style="color:rgba(232,230,223,.5)">,</span></span></div>
+          <div class="pk-line"><span class="pk-ln">2</span><span><span style="color:#e8e6df"> </span><span style="color:#e8e6df"> </span><span style="color:#ff5c1c">"ltm_version"</span><span style="color:rgba(232,230,223,.5)">:</span><span style="color:#e8e6df"> </span><span style="color:#e8e6df">"0.2"</span><span style="color:rgba(232,230,223,.5)">,</span></span></div>
           <div class="pk-line"><span class="pk-ln">3</span><span><span style="color:#e8e6df"> </span><span style="color:#e8e6df"> </span><span style="color:#ff5c1c">"id"</span><span style="color:rgba(232,230,223,.5)">:</span><span style="color:#e8e6df"> </span><span style="color:#e8e6df">"01JDMB4W1YNJZQR7K8F3A2H5P9"</span><span style="color:rgba(232,230,223,.5)">,</span></span></div>
           <div class="pk-line"><span class="pk-ln">4</span><span><span style="color:#e8e6df"> </span><span style="color:#e8e6df"> </span><span style="color:#ff5c1c">"created_at"</span><span style="color:rgba(232,230,223,.5)">:</span><span style="color:#e8e6df"> </span><span style="color:#e8e6df">"2026-04-18T22:41:03Z"</span><span style="color:rgba(232,230,223,.5)">,</span></span></div>
           <div class="pk-line"><span class="pk-ln">5</span><span><span style="color:#e8e6df"> </span><span style="color:#e8e6df"> </span><span style="color:#ff5c1c">"provenance"</span><span style="color:rgba(232,230,223,.5)">:</span><span style="color:#e8e6df"> </span><span style="color:rgba(232,230,223,.5)">{</span></span></div>
@@ -486,11 +525,24 @@ ltm server --addr :8080">[copy]</button></div>
         <a href="https://github.com/dennisdevulder/ltm">[github]</a>
         <a href="https://github.com/dennisdevulder/ltm/blob/main/SPEC.md">[spec]</a>
         <a href="https://github.com/dennisdevulder/ltm/discussions">[discussions]</a>
+        <a href="./privacy.html">[privacy]</a>
       </div>
     </div>
   </footer>
 
-  <!-- ————— copy buttons ————— -->
+  <!-- ————— consent banner ————— -->
+  <div class="consent" id="consent" role="region" aria-label="Cookie consent">
+    <div class="txt">
+      We use Google Analytics to see how this page is doing. It sets a cookie only if you agree.
+      See the <a href="./privacy.html">privacy notice</a>.
+    </div>
+    <div class="btns">
+      <button type="button" class="decline" id="consent-decline">Decline</button>
+      <button type="button" class="accept"  id="consent-accept">Accept</button>
+    </div>
+  </div>
+
+  <!-- ————— copy buttons + consent logic ————— -->
   <script>
     document.addEventListener('click', function (e) {
       var btn = e.target.closest('.t-copy');
@@ -506,6 +558,27 @@ ltm server --addr :8080">[copy]</button></div>
         btn.classList.remove('copied');
       }, 1400);
     });
+
+    (function () {
+      var KEY = 'ltm_ga_consent';
+      var banner = document.getElementById('consent');
+      if (!banner) return;
+      var stored;
+      try { stored = localStorage.getItem(KEY); } catch (e) { stored = null; }
+      if (!stored) banner.classList.add('show');
+
+      function set(value) {
+        try { localStorage.setItem(KEY, value); } catch (e) {}
+        if (typeof gtag === 'function') {
+          gtag('consent', 'update', {
+            analytics_storage: value === 'granted' ? 'granted' : 'denied'
+          });
+        }
+        banner.classList.remove('show');
+      }
+      document.getElementById('consent-accept').addEventListener('click', function () { set('granted'); });
+      document.getElementById('consent-decline').addEventListener('click', function () { set('denied'); });
+    })();
   </script>
 
 </body>
