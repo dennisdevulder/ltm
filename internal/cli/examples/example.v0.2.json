@@ -1,0 +1,65 @@
+{
+  "ltm_version": "0.2",
+  "id": "01JS5LTMEXAMPLEPACKET00001A",
+  "created_at": "2026-04-22T00:00:00Z",
+  "project": {
+    "name": "ltm-example",
+    "ref": "github.com/dennisdevulder/ltm-example"
+  },
+  "goal": "Make ltm-example's email.md exciting enough that a developer would forward it to a teammate.",
+  "success_criteria": [
+    "email.md is under 200 words and reads aloud without stumbling.",
+    "A reader who has never heard of ltm can explain what it does after one pass.",
+    "The rewrite leads with the pain (re-briefing a fresh agent on a new machine) before naming the tool.",
+    "No corporate hedging: phrases like 'may be of interest', 'serves as', or 'utility for the transfer of' are gone."
+  ],
+  "constraints": [
+    "Keep it a single email.md file — no new files, no folder restructure.",
+    "Do not invent features ltm does not have. Verify against ltm's SPEC.md before writing.",
+    "Stay under 200 words total."
+  ],
+  "decisions": [
+    {
+      "what": "Output stays in email.md, not a redesigned README or landing page.",
+      "why": "The repo's job is to be a fixed target for the 'ltm example' command — diverging from a single email.md breaks the demo's contract.",
+      "consequences": "Suggestions to add a README, GIF, or marketing site belong in a separate ltm repo PR, not here.",
+      "locked": true
+    },
+    {
+      "what": "Keep the file format as plain Markdown.",
+      "why": "The agent rewriting it can be any model; assuming HTML or MJML breaks portability of the demo.",
+      "locked": true
+    }
+  ],
+  "methods": [
+    {
+      "name": "voice-test-read-aloud",
+      "when_applicable": "Polishing short-form copy where flow matters more than density.",
+      "how": "Read the draft aloud once. Cut anything you stumble on. Re-read. Cut again. Stop when one full pass reads cleanly without backtracking."
+    },
+    {
+      "name": "lead-with-pain",
+      "when_applicable": "Writing intro copy for a developer tool.",
+      "how": "Open with the concrete moment the reader has lived through (e.g., re-briefing a fresh agent at midnight). Name the tool only after the pain lands."
+    }
+  ],
+  "attempts": [
+    {
+      "tried": "Drafted a version that opened with 'ltm is a portable memory protocol for AI agents.'",
+      "outcome": "failed",
+      "learned": "Leading with a category label loses the reader before the value lands — the pain has to come first.",
+      "confidence": "high"
+    }
+  ],
+  "open_questions": [
+    "Should the rewrite include a one-liner install command, or stay purely narrative?",
+    "Is it worth showing a tiny example packet inline, or does that bloat past the 200-word budget?"
+  ],
+  "next_step": "Clone github.com/dennisdevulder/ltm-example and rewrite email.md to read like a developer recommending the tool to a friend.",
+  "tags": ["docs", "copywriting", "example", "demo"],
+  "provenance": {
+    "author_model": "claude-opus-4-7",
+    "author_human": "dennisdevulder",
+    "confidence": "high"
+  }
+}
