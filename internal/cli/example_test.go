@@ -59,10 +59,13 @@ func TestExampleCommand_ResumeFlagRendersBlock(t *testing.T) {
 	if err := cmd.Flags().Set("resume", "true"); err != nil {
 		t.Fatalf("set --resume: %v", err)
 	}
-	// renderResumeBlock prints to os.Stdout directly; we just assert the
-	// command runs without error when --resume is set. The rendering itself
-	// is exercised by resume_test.go.
+	// Use --no-copy so the test doesn't require a working clipboard
+	// (CI containers don't have one). The rendering itself is exercised
+	// by resume_test.go; here we just assert the command runs cleanly.
+	if err := cmd.Flags().Set("no-copy", "true"); err != nil {
+		t.Fatalf("set --no-copy: %v", err)
+	}
 	if err := cmd.RunE(cmd, nil); err != nil {
-		t.Fatalf("example --resume failed: %v", err)
+		t.Fatalf("example --resume --no-copy failed: %v", err)
 	}
 }
