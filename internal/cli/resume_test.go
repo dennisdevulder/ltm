@@ -268,3 +268,22 @@ func TestHumanRelTime_Buckets(t *testing.T) {
 		t.Errorf("humanRelTime on bad input should return input verbatim, got %q", got)
 	}
 }
+
+// TestPickerKeyMap_QuitIncludesEsc guards the picker's cancel behavior: esc
+// must abort the form alongside ctrl+c. Without this, the 'esc to cancel'
+// description in the UI would be a lie — huh v1.0.0 binds Quit to ctrl+c only.
+func TestPickerKeyMap_QuitIncludesEsc(t *testing.T) {
+	km := pickerKeyMap()
+	keys := km.Quit.Keys()
+	want := map[string]bool{"ctrl+c": false, "esc": false}
+	for _, k := range keys {
+		if _, ok := want[k]; ok {
+			want[k] = true
+		}
+	}
+	for k, seen := range want {
+		if !seen {
+			t.Errorf("picker Quit keymap missing %q (keys=%v)", k, keys)
+		}
+	}
+}
