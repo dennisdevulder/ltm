@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <title>ltm · portable context for AI work sessions</title>
-<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
 <meta name="description" content="ltm: an open, self-hosted protocol for portable AI session memory. Git captures what a project is; ltm captures what it ran into." />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -47,7 +47,15 @@
   }
 
   *, *::before, *::after { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; }
+  html, body {
+    margin: 0; padding: 0;
+    /* Kill accidental horizontal scroll and iOS rubber-band sideways.
+       pan-y also disables pinch-zoom, so the page never rescales under
+       a stray two-finger gesture. */
+    overflow-x: hidden;
+    overscroll-behavior-x: none;
+    touch-action: pan-y;
+  }
   body {
     background: var(--bg);
     color: var(--fg);
@@ -233,7 +241,13 @@
 
   /* ————— responsive ————— */
   @media (max-width: 760px) {
-    .col { padding: 0 20px; }
+    /* Minimum gutter of 24px, but let iOS push it wider on notched/curved
+       devices so content never touches a bezel edge. viewport-fit=cover
+       in the meta is what makes env(safe-area-inset-*) resolve. */
+    .col {
+      padding-left: max(24px, env(safe-area-inset-left));
+      padding-right: max(24px, env(safe-area-inset-right));
+    }
 
     /* Nav: let items wrap instead of running off the edge, and tighten gaps. */
     .nav {
@@ -287,9 +301,12 @@
     table.verbs td, table.verbs th { padding: 10px 12px; }
     table.verbs td.desc { font-size: 14px; }
 
-    /* Consent banner: stack text above buttons, full-width taps. */
+    /* Consent banner: stack text above buttons, full-width taps. Lift it
+       above the iOS home indicator when present. */
     .consent {
-      left: 12px; right: 12px; bottom: 12px;
+      left: max(12px, env(safe-area-inset-left));
+      right: max(12px, env(safe-area-inset-right));
+      bottom: max(12px, env(safe-area-inset-bottom));
       flex-direction: column; align-items: stretch;
       padding: 12px 14px; gap: 10px;
     }
@@ -304,7 +321,10 @@
 
   /* ————— very narrow (phones ≤420px) ————— */
   @media (max-width: 420px) {
-    .col { padding: 0 16px; }
+    .col {
+      padding-left: max(20px, env(safe-area-inset-left));
+      padding-right: max(20px, env(safe-area-inset-right));
+    }
 
     /* Drop in-page anchors from the nav so the external links (platform,
        github) don't wrap onto a third row. On a phone, scrolling to find
