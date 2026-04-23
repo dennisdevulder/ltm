@@ -40,9 +40,9 @@ No server to connect to yet? `ltm example --resume` runs the whole flow against 
 
 ```bash
 # Sign in. Three supported forms.
-ltm auth                                   # managed hub (OAuth device flow)
-ltm auth https://your-vps.example          # self-hosted, same flow
-ltm auth https://your-vps.example <token>  # or paste a pre-issued bearer token
+ltm auth                                         # managed hub (OAuth device flow)
+ltm auth https://your-server.example             # self-hosted, if the server speaks RFC 8628 device flow
+ltm auth https://your-server.example <token>     # paste a pre-issued bearer token (what the reference ltm server wants)
 
 # Daily driver.
 ltm save                                   # session to packet to push, in one step
@@ -83,6 +83,8 @@ ltm server init --db ~/.local/share/ltm/ltm.db   # prints the root token, once
 ltm server --addr :8080
 ltm server issue-token <name>                    # more tokens for more machines
 ```
+
+The reference server is bearer-token only. It does not implement OAuth device flow (RFC 8628) today, so clients pointed at it should use `ltm auth <host> <token>`. The managed hub implements device flow through Doorkeeper; a second implementation of the ltm protocol is free to do the same, and `ltm auth <host>` will then work against it.
 
 ## Packets travel. Secrets don't.
 
