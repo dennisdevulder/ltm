@@ -240,6 +240,12 @@
   .consent button:hover { background: rgba(255,92,28,.08); }
 
   /* ————— responsive ————— */
+  /* Body-level 20px gutter across mobile and tablet, so nothing sits
+     flush with the viewport edge regardless of what any child applies. */
+  @media (max-width: 1024px) {
+    body { padding: 0 20px; }
+  }
+
   @media (max-width: 760px) {
     /* Minimum gutter of 32px so prose doesn't read cramped next to
        40px hero type, but let iOS push it wider on notched/curved
