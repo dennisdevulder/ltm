@@ -241,12 +241,13 @@
 
   /* ————— responsive ————— */
   @media (max-width: 760px) {
-    /* Minimum gutter of 24px, but let iOS push it wider on notched/curved
+    /* Minimum gutter of 32px so prose doesn't read cramped next to
+       40px hero type, but let iOS push it wider on notched/curved
        devices so content never touches a bezel edge. viewport-fit=cover
        in the meta is what makes env(safe-area-inset-*) resolve. */
     .col {
-      padding-left: max(24px, env(safe-area-inset-left));
-      padding-right: max(24px, env(safe-area-inset-right));
+      padding-left: max(32px, env(safe-area-inset-left));
+      padding-right: max(32px, env(safe-area-inset-right));
     }
 
     /* Nav: let items wrap instead of running off the edge, and tighten gaps. */
@@ -322,8 +323,8 @@
   /* ————— very narrow (phones ≤420px) ————— */
   @media (max-width: 420px) {
     .col {
-      padding-left: max(20px, env(safe-area-inset-left));
-      padding-right: max(20px, env(safe-area-inset-right));
+      padding-left: max(28px, env(safe-area-inset-left));
+      padding-right: max(28px, env(safe-area-inset-right));
     }
 
     /* Drop in-page anchors from the nav so the external links (platform,
@@ -332,7 +333,11 @@
     .nav-links a[href^="#"] { display: none; }
 
     .hero { padding: 32px 0; }
+    /* Let the headline wrap naturally at these widths. The desktop <br>
+       makes the second half ("for AI work sessions.") overflow a 375px
+       viewport once you account for the gutter. */
     .hero h1 { font-size: 32px; letter-spacing: -0.5px; }
+    .hero h1 br { display: none; }
     .hero p.lede { font-size: 15px; }
     .sec-t { font-size: 22px; }
 
@@ -367,12 +372,12 @@
   <!-- ————— hero / front matter ————— -->
   <section class="hero col">
     <div class="meta">LTM-SPEC-0001 · 2026-04-21</div>
-    <h1>Portable understanding<br>for AI work sessions.</h1>
+    <h1>Portable context<br>for AI work sessions.</h1>
     <p class="lede">
       Git captures what a project is. ltm captures what it ran into: the dead ends,
-      the decisions with no code artifact, the constraints that shaped the current
-      code without appearing in it. A one-file, two-verb protocol. Self-hosted.
-      Model-agnostic. Open.
+      the arguments you had with the model and lost, the constraints that shaped
+      the current code without ever appearing in it. A one-file, two-verb protocol.
+      Self-hosted. Model-agnostic. Open.
     </p>
 
     <div class="frontmatter">
