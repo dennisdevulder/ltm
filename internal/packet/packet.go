@@ -24,14 +24,14 @@ const MaxPacketBytes = 32 * 1024
 type Packet struct {
 	LTMVersion      string      `json:"ltm_version"`
 	ID              string      `json:"id"`
-	ParentID        string      `json:"parent_id,omitempty"`       // v0.2
+	ParentID        string      `json:"parent_id,omitempty"` // v0.2
 	CreatedAt       time.Time   `json:"created_at"`
 	Project         *Project    `json:"project,omitempty"`
 	Goal            string      `json:"goal"`
 	SuccessCriteria []string    `json:"success_criteria,omitempty"` // v0.2
 	Constraints     []string    `json:"constraints,omitempty"`
 	Decisions       []Decision  `json:"decisions,omitempty"`
-	Methods         []Method    `json:"methods,omitempty"`          // v0.2
+	Methods         []Method    `json:"methods,omitempty"` // v0.2
 	Attempts        []Attempt   `json:"attempts,omitempty"`
 	OpenQuestions   []string    `json:"open_questions,omitempty"`
 	NextStep        string      `json:"next_step"`
