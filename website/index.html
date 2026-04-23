@@ -419,10 +419,11 @@
       what you ran into on the way there: the dead ends that left no artifact, the
       decisions you argued out and cannot reconstruct from the diff, the constraints that
       shaped the current code without appearing in it. That part evaporates every time
-      the harness changes. Three months on Claude Code, you try Codex. Next quarter it is
-      Cursor, or Windsurf, or Zed. Each harness wants its own instruction file (CLAUDE.md,
-      .cursorrules, AGENTS.md) and none of them were written to move. Same erasure when
-      the machine changes, for the same reason: intent was never separated from setup.
+      the harness changes. Three months on Claude Code, you try Codex; next quarter you
+      try Cursor, or Windsurf, or Zed. Each harness wants its own instruction file —
+      CLAUDE.md, .cursorrules, AGENTS.md — and none of them were written to move. Same
+      erasure when the machine changes, for the same reason: intent was never separated
+      from setup.
     </div>
     <p class="abstract-conclusion">
       Git has the diffs<span class="acc">.</span>
@@ -467,7 +468,7 @@
   <!-- ————— 3. Design principles ————— -->
   <section class="sec col">
     <h2 class="sec-n">§ 3. Design principles</h2>
-    <h3 class="sec-t">Four invariants.</h3>
+    <h3 class="sec-t">Five invariants.</h3>
     <div class="principles">
       <div class="principle">
         <div class="tag">REQ-01</div>
@@ -495,6 +496,13 @@
         <div class="body">
           <h4>Spec first</h4>
           <p>The protocol is public and versioned. The CLI and server are reference implementations, not the whole product.</p>
+        </div>
+      </div>
+      <div class="principle">
+        <div class="tag">REQ-05</div>
+        <div class="body">
+          <h4>Redact aggressively</h4>
+          <p>Secrets and local state never ride along. The client refuses the push when it finds them, and the author has to opt in out loud.</p>
         </div>
       </div>
     </div>
@@ -600,10 +608,10 @@ per packet</div></div>
       to move between machines, teams, and agents; the person writing a packet
       is not always the person reading it. The scanner is designed to be noisy
       rather than quiet: block a legitimate push and make the caller opt in,
-      rather than silently leak a credential. The full pattern list and
-      scanned-field surface live in <span class="m">internal/packet/packet.go</span>
-      (see <span class="m">redactionPatterns</span>). A second implementation
-      of the protocol MUST ship this pre-flight before its first network call.
+      rather than silently leak a credential. Implementation and test vectors
+      live in <a class="m" href="https://github.com/dennisdevulder/ltm/blob/main/internal/packet/packet.go">internal/packet/packet.go</a>
+      (see <span class="m">redactionPatterns</span>). A second implementation of
+      the protocol MUST ship this pre-flight before its first network call.
     </p>
   </section>
 
@@ -637,8 +645,9 @@ per packet</div></div>
     <h3 class="sec-t">Sixty seconds, no server required.</h3>
     <p class="packet-intro">
       Install the CLI, grab the bundled example packet onto your clipboard, and paste it
-      into any agent session. It picks up where a prior session left off and rewrites
-      the example email in <span class="m">ltm-example</span>.
+      into any agent session. The packet is a mid-task snapshot pointing at a small
+      demo repo (<span class="m">github.com/dennisdevulder/ltm-example</span>); a fresh
+      session reads it and picks up the work — no briefing, no ID, no server.
     </p>
     <div class="term">
         <div class="t-head"><span>sh</span><button class="t-copy" data-copy="curl -fsSL https://ltm-cli.dev/install | sh
@@ -652,16 +661,17 @@ ltm example --resume">[copy]</button></div>
       </div>
   </section>
 
-  <!-- ————— 7. MCP integration ————— -->
+  <!-- ————— 8. MCP integration ————— -->
   <section class="sec col" id="mcp">
-    <h2 class="sec-n">§ 7. MCP integration</h2>
+    <h2 class="sec-n">§ 8. MCP integration</h2>
     <h3 class="sec-t">Wire it into your agent.</h3>
     <p class="packet-intro">
       <span class="m">ltm mcp</span> is a Model Context Protocol server over stdio.
-      Register it once and your agent can call <span class="m">resume</span>,
-      <span class="m">ls</span>, <span class="m">show</span>, <span class="m">push</span>,
-      <span class="m">pull</span>, <span class="m">rm</span>, <span class="m">example</span>,
-      and <span class="m">whoami</span> as tools. No paste step.
+      Register it once and your agent can call <span class="m">save</span>,
+      <span class="m">resume</span>, <span class="m">ls</span>, <span class="m">show</span>,
+      <span class="m">push</span>, <span class="m">pull</span>, <span class="m">rm</span>,
+      <span class="m">example</span>, and <span class="m">whoami</span> as tools.
+      No paste step.
     </p>
     <div class="term">
         <div class="t-head"><span>sh · claude code</span><button class="t-copy" data-copy="claude mcp add ltm -- ltm mcp">[copy]</button></div>
@@ -682,9 +692,9 @@ ltm example --resume">[copy]</button></div>
       </div>
   </section>
 
-  <!-- ————— 8. Install ————— -->
+  <!-- ————— 9. Install ————— -->
   <section class="sec col" id="install">
-    <h2 class="sec-n">§ 8. Reference implementation</h2>
+    <h2 class="sec-n">§ 9. Reference implementation</h2>
     <h3 class="sec-t">Install the CLI.</h3>
     <div class="term">
         <div class="t-head"><span>sh · client</span><button class="t-copy" data-copy="curl -fsSL https://ltm-cli.dev/install | sh
