@@ -49,9 +49,9 @@ func NewRootCmd() *cobra.Command {
 // ---- shared: HTTP client against the configured server ----
 
 type client struct {
-	host   string
-	token  string
-	http   *http.Client
+	host  string
+	token string
+	http  *http.Client
 }
 
 func newClient() (*client, error) {

@@ -206,7 +206,7 @@ func TestExtractLTMBinary_FindsBinaryInSubdir(t *testing.T) {
 
 func TestExtractLTMBinary_MissingBinary(t *testing.T) {
 	archive := writeTarGz(t, map[string][]byte{
-		"README.md":    []byte("readme"),
+		"README.md":     []byte("readme"),
 		"checksums.txt": []byte("abc"),
 	})
 	_, err := extractLTMBinary(archive)

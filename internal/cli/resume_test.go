@@ -23,7 +23,7 @@ func fullV02Packet() *packet.Packet {
 			"unsupported versions rejected with a clear error",
 		},
 		Constraints: []string{"stay backwards compatible with v0.1"},
-		Decisions: []Decision(nil),
+		Decisions:   []Decision(nil),
 		Methods: []packet.Method{
 			{Name: "refresh-ghcr", WhenApplicable: "push denied", How: "bin/kamal registry login"},
 		},

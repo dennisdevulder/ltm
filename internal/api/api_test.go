@@ -404,4 +404,3 @@ func TestCreatePacket_StoresCanonicalForm(t *testing.T) {
 		t.Errorf("parsed id = %q, want %q", p.ID, validID)
 	}
 }
-
