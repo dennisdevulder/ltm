@@ -61,6 +61,23 @@ ltm example
 ltm update
 ```
 
+## Wire it into your agent (MCP)
+
+`ltm mcp` speaks the Model Context Protocol over stdio, so any MCP-aware client
+can call the same verbs as tools. No second credential surface; it reuses the
+host and token `ltm auth` already stored.
+
+```bash
+# Claude Code:
+claude mcp add ltm -- ltm mcp
+
+# Cursor, Zed, Claude Desktop, Continue: paste into the client's MCP config:
+# { "ltm": { "command": "ltm", "args": ["mcp"] } }
+```
+
+Tools exposed: `ls`, `show`, `pull`, `resume`, `push`, `rm`, `example`, `whoami`.
+Ask the agent to "resume the latest packet" or to `example` it. No id juggling.
+
 ## Run it (server)
 
 ```bash
@@ -79,7 +96,8 @@ HTTPS is your job. Put it behind Caddy, nginx, or a reverse proxy of your choosi
 
 ## What's in the box
 
-- **CLI**: `auth` (and `whoami`), `config` (`set`/`get`/`unset`/`list`/`edit`/`path`), `push`, `pull`, `ls`, `show`, `rm`, `resume`, `example`, `update`, `server` (with `init` and `issue-token`).
+- **CLI**: `auth` (and `whoami`), `config` (`set`/`get`/`unset`/`list`/`edit`/`path`), `push`, `pull`, `ls`, `show`, `rm`, `resume`, `example`, `update`, `server` (with `init` and `issue-token`), `mcp`.
+- **MCP server**: `ltm mcp` is a stdio-based Model Context Protocol server that exposes the verbs above as tools to Claude Code, Cursor, Zed, Claude Desktop, Continue, or any MCP-aware client. Reuses the CLI's auth, config, schema validation, and redaction pre-flight.
 - **HTTP API**: `GET /v1/healthz`, plus bearer-authed `POST/GET/DELETE /v1/packets`. Max packet size is 32 KB.
 - **Packet validation**: JSON Schema for v0.1 and v0.2, embedded in the binary and routed by the declared `ltm_version`.
 - **Redaction pre-flight**: packets are scanned before they leave your machine. Absolute paths (`/Users/...`, `/home/...`, `C:\...`), AWS keys, GitHub tokens, JWTs, private-key headers, Google API keys, Slack tokens, Stripe keys, and SSH public keys all block the push. Override with `--allow-unredacted` if you know what you're doing.
@@ -95,7 +113,6 @@ HTTPS is your job. Put it behind Caddy, nginx, or a reverse proxy of your choosi
 
 ## What's not here yet
 
-- MCP server (planned).
 - Packet sharing, team spaces, federation. Chaining exists in the v0.2 schema via `parent_id`; servers don't surface it yet.
 - Windows binaries. Linux and macOS only, amd64 and arm64.
 - A fuzz and end-to-end harness on top of the existing unit and integration tests.

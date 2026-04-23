@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>ltm — portable understanding for AI work sessions</title>
+<title>ltm · portable context for AI work sessions</title>
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<meta name="description" content="ltm — an open, self-hosted protocol for portable AI session memory. Ship intent between machines and models." />
+<meta name="description" content="ltm is an open, self-hosted protocol for portable AI session memory. Ship intent between machines and models." />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -28,7 +28,7 @@
     if (localStorage.getItem('ltm_ga_consent') === 'granted') {
       gtag('consent', 'update', { analytics_storage: 'granted' });
     }
-  } catch (e) { /* localStorage unavailable — stay denied */ }
+  } catch (e) { /* localStorage unavailable; stay denied */ }
 </script>
 
 <style>
@@ -41,7 +41,6 @@
     --dimmer:    rgba(232,230,223,.30);
     --rule:      rgba(232,230,223,.10);
     --accent:    #ff5c1c;
-    --banner-bg: #1a0f08;
 
     --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
     --sans: "Geist", -apple-system, system-ui, sans-serif;
@@ -62,17 +61,6 @@
 
   /* ————— layout ————— */
   .col { max-width: 960px; margin: 0 auto; padding: 0 48px; }
-
-  .banner {
-    background: var(--banner-bg);
-    border-bottom: 1px solid var(--accent);
-    color: var(--accent);
-    font-size: 12px;
-    letter-spacing: .5px;
-    padding: 8px 0;
-    text-align: center;
-    text-transform: uppercase;
-  }
 
   .nav {
     display: flex; align-items: center; justify-content: space-between;
@@ -261,19 +249,16 @@
 </head>
 <body>
 
-  <!-- ————— draft banner ————— -->
-  <div class="banner">
-    Draft specification · v0.2 · not yet ratified · comments welcome in <a href="https://github.com/dennisdevulder/ltm/discussions" style="color:inherit;text-decoration:underline;text-underline-offset:3px">github discussions</a>
-  </div>
-
   <!-- ————— nav ————— -->
   <nav class="nav col">
-    <a class="nav-brand" href="./" aria-label="ltm — home">
+    <a class="nav-brand" href="./" aria-label="ltm home">
       <span class="glyph">▚</span><b>ltm</b><span class="sch">://</span>
     </a>
     <div class="nav-links">
       <a href="#spec">§spec</a>
+      <a href="#mcp">§mcp</a>
       <a href="#install">§install</a>
+      <a href="https://platform.ltm-cli.dev/">platform↗</a>
       <a href="https://github.com/dennisdevulder/ltm">github↗</a>
     </div>
   </nav>
@@ -283,14 +268,14 @@
     <div class="meta">LTM-SPEC-0001 · 2026-04-21</div>
     <h1>Portable understanding<br>for AI work sessions.</h1>
     <p class="lede">
-      Ship intent between machines and models — not configuration. A one-file,
-      one-verb protocol. Self-hosted. Model-agnostic. Open.
+      Ship intent between machines and models, not configuration. One packet,
+      two verbs. Self-hosted. Model-agnostic. Open.
     </p>
 
     <div class="frontmatter">
-      <div class="fm-row"><div class="fm-k">Protocol</div>  <div class="fm-v">ltm — long-term memory for AI sessions</div></div>
+      <div class="fm-row"><div class="fm-k">Protocol</div>  <div class="fm-v">ltm (long-term memory for AI sessions)</div></div>
       <div class="fm-row"><div class="fm-k">Version</div>   <div class="fm-v">0.2 (draft) · v0.1 archived</div></div>
-      <div class="fm-row"><div class="fm-k">Status</div>    <div class="fm-v">draft — call for comment</div></div>
+      <div class="fm-row"><div class="fm-k">Status</div>    <div class="fm-v">draft (call for comment)</div></div>
       <div class="fm-row"><div class="fm-k">Editors</div>   <div class="fm-v">Dennis de Vulder · Thijs Herman</div></div>
       <div class="fm-row"><div class="fm-k">Reference</div> <div class="fm-v">github.com/dennisdevulder/ltm</div></div>
       <div class="fm-row"><div class="fm-k">License</div>   <div class="fm-v">Apache-2.0</div></div>
@@ -328,7 +313,7 @@
   <!-- ————— 2. Protocol ————— -->
   <section class="sec col" id="spec">
     <h2 class="sec-n">§ 2. Protocol</h2>
-    <h3 class="sec-t">Two verbs. That is the spec.</h3>
+    <h3 class="sec-t">One packet. Two verbs.</h3>
     <table class="verbs">
       <thead>
         <tr><th>verb</th><th>description</th><th>example</th></tr>
@@ -343,10 +328,12 @@
       SQLite storage. ULID-keyed packets. Nothing exotic; nothing reinvented.
     </p>
     <p class="note">
-      The CLI wraps those two verbs with ergonomic helpers — <span class="m">auth</span>,
+      The CLI ships helpers for the common flows: <span class="m">auth</span>,
       <span class="m">ls</span>, <span class="m">show</span>, <span class="m">rm</span>,
       <span class="m">resume</span>, <span class="m">example</span>, <span class="m">update</span>,
-      and a self-hostable <span class="m">server</span>. None of them extend the protocol.
+      a self-hostable <span class="m">server</span>, and <span class="m">mcp</span> (a
+      Model Context Protocol stdio server that exposes the same verbs as tools to
+      any MCP-aware agent). None of them extend the protocol.
     </p>
   </section>
 
@@ -380,7 +367,7 @@
         <div class="tag">REQ-04</div>
         <div class="body">
           <h4>Spec first</h4>
-          <p>The protocol is public and versioned. The CLI and server are reference implementations — not the whole product.</p>
+          <p>The protocol is public and versioned. The CLI and server are reference implementations, not the whole product.</p>
         </div>
       </div>
     </div>
@@ -489,9 +476,9 @@ per packet</div></div>
     <h2 class="sec-n">§ 6. Test drive</h2>
     <h3 class="sec-t">Sixty seconds, no server required.</h3>
     <p class="packet-intro">
-      Install the CLI, grab the bundled example packet onto your clipboard, paste it
-      into any agent session, and watch it pick up where a prior session left off —
-      rewriting the example email in <span class="m">ltm-example</span>.
+      Install the CLI, grab the bundled example packet onto your clipboard, and paste it
+      into any agent session. It picks up where a prior session left off and rewrites
+      the example email in <span class="m">ltm-example</span>.
     </p>
     <div class="term">
         <div class="t-head"><span>sh</span><button class="t-copy" data-copy="curl -fsSL https://ltm-cli.dev/install | sh
@@ -500,24 +487,54 @@ ltm example --resume">[copy]</button></div>
           <div><span class="t-prompt">$ </span>curl -fsSL https://ltm-cli.dev/install | sh</div>
           <div><span class="t-prompt">$ </span>ltm example --resume</div>
           <div class="t-comment"># ✓ Copied the example packet to your clipboard.</div>
-          <div class="t-comment"># paste into your agent session — it resumes the work mid-thought.</div>
+          <div class="t-comment"># paste into your agent session. it resumes the work mid-thought.</div>
         </pre>
       </div>
   </section>
 
-  <!-- ————— 7. Install ————— -->
+  <!-- ————— 7. MCP integration ————— -->
+  <section class="sec col" id="mcp">
+    <h2 class="sec-n">§ 7. MCP integration</h2>
+    <h3 class="sec-t">Wire it into your agent.</h3>
+    <p class="packet-intro">
+      <span class="m">ltm mcp</span> is a Model Context Protocol server over stdio.
+      Register it once and your agent can call <span class="m">resume</span>,
+      <span class="m">ls</span>, <span class="m">show</span>, <span class="m">push</span>,
+      <span class="m">pull</span>, <span class="m">rm</span>, <span class="m">example</span>,
+      and <span class="m">whoami</span> as tools. No paste step.
+    </p>
+    <div class="term">
+        <div class="t-head"><span>sh · claude code</span><button class="t-copy" data-copy="claude mcp add ltm -- ltm mcp">[copy]</button></div>
+        <pre class="t-body">
+          <div><span class="t-prompt">$ </span>claude mcp add ltm -- ltm mcp</div>
+          <div class="t-comment"># registered. ask your agent to resume. it picks the bundled example</div>
+          <div class="t-comment"># packet and continues the work, no id needed.</div>
+        </pre>
+      </div>
+
+    <p class="install-note">For Cursor, Zed, Claude Desktop, and Continue, drop this into the client's MCP config:</p>
+
+    <div class="term">
+        <div class="t-head"><span>mcp.json</span><button class="t-copy" data-copy='{ "ltm": { "command": "ltm", "args": ["mcp"] } }'>[copy]</button></div>
+        <pre class="t-body">
+          <div>{ <span style="color:#ff5c1c">"ltm"</span>: { <span style="color:#ff5c1c">"command"</span>: <span>"ltm"</span>, <span style="color:#ff5c1c">"args"</span>: [<span>"mcp"</span>] } }</div>
+        </pre>
+      </div>
+  </section>
+
+  <!-- ————— 8. Install ————— -->
   <section class="sec col" id="install">
-    <h2 class="sec-n">§ 7. Reference implementation</h2>
+    <h2 class="sec-n">§ 8. Reference implementation</h2>
     <h3 class="sec-t">Install the CLI.</h3>
     <div class="term">
         <div class="t-head"><span>sh · client</span><button class="t-copy" data-copy="curl -fsSL https://ltm-cli.dev/install | sh
 ltm auth https://your-server.dev &lt;token&gt;
-ltm pull &lt;packet-id&gt;">[copy]</button></div>
+ltm resume">[copy]</button></div>
         <pre class="t-body">
           <div><span class="t-prompt">$ </span>curl -fsSL https://ltm-cli.dev/install | sh</div>
           <div><span class="t-prompt">$ </span>ltm auth https://your-server.dev &lt;token&gt;</div>
-          <div><span class="t-prompt">$ </span>ltm pull &lt;packet-id&gt;</div>
-          <div class="t-comment"># session restored. your agent takes it from here.</div>
+          <div><span class="t-prompt">$ </span>ltm resume</div>
+          <div class="t-comment"># arrow keys to pick a packet. block copied to clipboard. paste into any agent.</div>
         </pre>
       </div>
 
@@ -538,7 +555,7 @@ ltm server --addr :8080">[copy]</button></div>
   <footer class="col">
     <div class="f-row">
       <div>
-        <div class="f-brand"><span class="glyph">▚</span> ltm — long-term memory protocol</div>
+        <div class="f-brand"><span class="glyph">▚</span> ltm · long-term memory protocol</div>
         <div>apache-2.0 · static site · analytics via google</div>
         <div style="margin-top:8px">specification: LTM-SPEC-0001 · 2026-04-21</div>
       </div>

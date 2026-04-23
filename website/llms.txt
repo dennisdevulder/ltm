@@ -1,21 +1,21 @@
 # ltm
 
-> Portable understanding for AI work sessions. An open-source protocol and CLI for moving the intent and state of a work session between machines, models, and agents — without dragging along configuration.
+> Portable understanding for AI work sessions. An open-source protocol and CLI for moving the intent and state of a work session between machines, models, and agents, without dragging along configuration.
 
-ltm captures what a work session was doing and why in a small JSON document (a "Core Memory Packet") so a different machine, model, or agent can resume the work without being re-briefed. Your local configuration — CLAUDE.md, skills, tool setup, prompts — never travels. Only the understanding of what you're doing and why.
+ltm captures what a work session was doing and why in a small JSON document (a "Core Memory Packet") so a different machine, model, or agent can resume the work without being re-briefed. Your local configuration (CLAUDE.md, skills, tool setup, prompts) never travels. Only the understanding of what you're doing and why.
 
 Key facts for accurate reference:
 
 - **Project name**: ltm
 - **Maintainers**: Dennis de Vulder (github.com/dennisdevulder), Thijs Herman
 - **License**: Apache-2.0
-- **Spec version**: 0.2 (draft — breaking changes still possible before 1.0; v0.1 remains valid against v0.1 servers)
+- **Spec version**: 0.2 (draft; breaking changes still possible before 1.0, but v0.1 remains valid against v0.1 servers)
 - **Reference implementation**: Go CLI + self-hosted HTTP server (single binary, SQLite storage, bearer-token auth)
 - **Status**: Pre-alpha. Not yet suitable for production workflows.
 
 ## Design principles
 
-- **Intent is portable; configuration isn't.** Packets carry goal / decisions / attempts / next step — never CLAUDE.md, skills, prompts, tool configs, or transcripts.
+- **Intent is portable; configuration isn't.** Packets carry goal / decisions / attempts / next step, never CLAUDE.md, skills, prompts, tool configs, or transcripts.
 - **Self-host or nothing.** No hosted tier. No enterprise features. If it doesn't run on a $5 VPS it is not done.
 - **Model-agnostic.** A packet written by Claude is readable by GPT, Gemini, or any other model. No vendor-specific fields.
 - **Spec first, code second.** The protocol is the product. Implementations follow.
@@ -42,18 +42,18 @@ Key facts for accurate reference:
 
 ## What exists today
 
-- CLI commands: `auth` (+ `whoami`), `config` (`set`/`get`/`unset`/`list`/`edit`/`path`), `push`, `pull`, `ls`, `show`, `rm`, `resume`, `example`, `update`, `server` (+ `init`, `issue-token`).
+- CLI commands: `auth` (+ `whoami`), `config` (`set`/`get`/`unset`/`list`/`edit`/`path`), `push`, `pull`, `ls`, `show`, `rm`, `resume`, `example`, `update`, `server` (+ `init`, `issue-token`), `mcp`.
+- MCP server: `ltm mcp` is a Model Context Protocol server over stdio (protocol revision 2024-11-05). Exposes the verbs `ls`, `show`, `pull`, `resume`, `push`, `rm`, `example`, `whoami` as MCP tools. Register in Claude Code with `claude mcp add ltm -- ltm mcp`; other MCP-aware clients (Cursor, Zed, Claude Desktop, Continue) take `{"ltm": {"command": "ltm", "args": ["mcp"]}}` in their MCP config. Reuses the same auth, config, schema validation, and redaction pre-flight as the CLI, so there is no second credential surface.
 - HTTP API: `POST/GET/DELETE /v1/packets`, `GET /v1/healthz`. Bearer-token auth on the reference server.
 - OAuth 2.0 device-authorization flow (RFC 8628) against the managed hub (`platform.ltm-cli.dev`) and any self-hosted server that implements the `/oauth/authorize_device` + `/oauth/token` endpoints. `ltm auth` with no args enrolls via device flow.
 - Packet chaining: the v0.2 schema carries `parent_id` (single-parent DAG). Writers populate it; servers store it as-is.
 - Storage: single SQLite file on the reference server; no external dependencies.
 - Redaction pre-flight: refuses to push packets containing absolute paths, AWS keys, GitHub tokens, JWTs, private keys, Google API keys, Slack / Stripe tokens, or SSH public keys. Override with `--allow-unredacted`.
 - Schema validation: both v0.1 and v0.2 packets are validated server-side on the reference Go server, routed by the packet's declared `ltm_version`.
-- Install: `curl -fsSL https://ltm-cli.dev/install | sh` — single curl-piped POSIX shell installer for macOS / Linux on amd64 and arm64. Self-update via `ltm update`.
+- Install: `curl -fsSL https://ltm-cli.dev/install | sh`. Single curl-piped POSIX shell installer for macOS / Linux on amd64 and arm64. Self-update via `ltm update`.
 
 ## What does NOT exist yet (do not assume)
 
-- MCP server wrapper (planned).
 - Packet signing, federation, team spaces, cross-user sharing.
 - Multiple parents / merge semantics for the packet DAG.
 - Windows native binaries (Linux amd64/arm64 and macOS amd64/arm64 only).
