@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.2](https://github.com/dennisdevulder/ltm/compare/v0.8.1...v0.8.2) (2026-04-23)
+
+
+### Documentation
+
+* **readme:** be honest about self-hosted OAuth ([#30](https://github.com/dennisdevulder/ltm/issues/30)) ([d2c4108](https://github.com/dennisdevulder/ltm/commit/d2c41081f885709b29e9aa03d1e44731f8d3b66d))
+* **readme:** rewrite around obstacle memory, trim the feature-list voice ([#27](https://github.com/dennisdevulder/ltm/issues/27)) ([a2248ab](https://github.com/dennisdevulder/ltm/commit/a2248abdc9f16b44feb104ff09e46e794ec858af))
+
 ## [0.8.1](https://github.com/dennisdevulder/ltm/compare/v0.8.0...v0.8.1) (2026-04-23)
 
 
