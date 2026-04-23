@@ -241,13 +241,14 @@
 
   /* ————— responsive ————— */
   @media (max-width: 760px) {
-    /* Minimum gutter of 32px so prose doesn't read cramped next to
-       40px hero type, but let iOS push it wider on notched/curved
-       devices so content never touches a bezel edge. viewport-fit=cover
-       in the meta is what makes env(safe-area-inset-*) resolve. */
+    /* Generous gutter so 40px hero type and large section headings don't
+       dominate the field. At smaller viewports this still leaves plenty
+       of content width, and env(safe-area-inset-*) pushes wider on
+       notched/curved phones. viewport-fit=cover in the meta is what
+       makes the insets resolve. */
     .col {
-      padding-left: max(32px, env(safe-area-inset-left));
-      padding-right: max(32px, env(safe-area-inset-right));
+      padding-left: max(40px, env(safe-area-inset-left));
+      padding-right: max(40px, env(safe-area-inset-right));
     }
 
     /* Nav: let items wrap instead of running off the edge, and tighten gaps. */
@@ -323,8 +324,8 @@
   /* ————— very narrow (phones ≤420px) ————— */
   @media (max-width: 420px) {
     .col {
-      padding-left: max(28px, env(safe-area-inset-left));
-      padding-right: max(28px, env(safe-area-inset-right));
+      padding-left: max(32px, env(safe-area-inset-left));
+      padding-right: max(32px, env(safe-area-inset-right));
     }
 
     /* Drop in-page anchors from the nav so the external links (platform,
