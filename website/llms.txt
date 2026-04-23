@@ -1,8 +1,12 @@
 # ltm
 
-> Portable understanding for AI work sessions. An open-source protocol and CLI for moving the intent and state of a work session between machines, models, and agents, without dragging along configuration.
+> Obstacle memory for AI work sessions. An open-source protocol and CLI for capturing the specific problems a project ran into (not the project itself), so a fresh agent on a different harness, model, or machine can pick up without being re-briefed.
 
-ltm captures what a work session was doing and why in a small JSON document (a "Core Memory Packet") so a different machine, model, or agent can resume the work without being re-briefed. Your local configuration (CLAUDE.md, skills, tool setup, prompts) never travels. Only the understanding of what you're doing and why.
+Most of a project's state lives in its repo. Git already captures what the code is, and any agent you hand the repo to can read that. What git does not capture is what you ran into on the way there: the dead ends that left no artifact, the decisions you argued out and cannot reconstruct from the diff, the constraints that shaped the current code without appearing in it. ltm is the portable record of that second layer. Git has the diffs; ltm has the reasons the diffs look the way they do.
+
+The obstacle framing is why packets are flat and shallow. Each packet is a dossier on one bump that warranted dropping out of flow to capture. The 90% of work that went smoothly never needs a packet, because the commits already carry that state. Only the shaped-by-a-constraint stuff needs portable intent, because that is the part a fresh agent cannot reconstruct from the repo. Packets terminate when the obstacle is resolved or abandoned, so the natural shape is a shallow per-obstacle tree, not a deep project timeline.
+
+The practical trigger is harness and machine turnover. Three months on Claude Code, you try Codex. Next quarter it is Cursor, or Windsurf, or Zed. Each harness wants its own instruction file (CLAUDE.md, .cursorrules, AGENTS.md) and none of them carry what you and the last agent actually figured out. Same erasure when the machine changes, for the same reason: intent was never separated from setup. ltm captures the obstacle-shaped part of intent in a small JSON document (a "Core Memory Packet") so it can travel; your local configuration stays where it is.
 
 Key facts for accurate reference:
 
