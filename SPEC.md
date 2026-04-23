@@ -151,6 +151,45 @@ A packet is a single JSON document. Minimum useful size: ~500 bytes. Typical: 2�
 9. **`consequences` answer: if you revisit this decision, what breaks?** If a decision has no downstream effect, you don't need to write a consequences field — but locked decisions almost always do.
 10. **`parent_id` should point to a packet the author has actually read.** Don't pretend at lineage.
 
+## Redaction
+
+The pre-flight behind writing rule #4 and the conformance criterion below.
+Six mechanics matter for auditors and second implementers:
+
+1. **Regex-based, RE2.** The reference implementation uses Go `regexp.Regexp`
+   values (the RE2 subset: no lookbehind, no backreferences, linear-time
+   matching guaranteed). A second implementation is free to use a different
+   regex engine or a handwritten parser provided it accepts and rejects the
+   same strings for each listed category.
+2. **Walks the typed struct, not the serialized JSON.** The scanner iterates
+   the named fields on the parsed packet. Whitespace, field ordering, and
+   escape style in the JSON do not change the result. Unknown or
+   future-version JSON fields are NOT scanned by implementations that parse
+   into a typed struct; writers adding fields in a minor-version bump MUST
+   update the scanner to include them.
+3. **One issue per (field, pattern) pair.** A single field containing two
+   distinct AWS keys blocks the push but reports only the first match for
+   that pattern. Sufficient for the block-or-allow decision; richer
+   reporting is permitted but not required.
+4. **Override is whole-packet, not per-pattern.** The override (the
+   reference CLI exposes this as `--allow-unredacted`) is a single boolean
+   per push. The writer makes one explicit decision to ship the packet as-is.
+   Per-pattern or per-field overrides are deliberately not offered: they
+   invite rubber-stamping without re-reading the packet.
+5. **Server does not re-scan.** Redaction is a writer obligation. The
+   reference server validates the schema and stores bytes; it does not re-run
+   the pattern list. A self-hosted deployment MAY add a second pass for
+   defense in depth; none is required by the protocol.
+6. **Matched text is echoed to the writer, truncated at 32 characters**, to
+   help them locate the hit. Private-key headers are the one exception:
+   matches are masked to `-----BEGIN …` so the error message itself does
+   not reproduce a key header.
+
+The specific prefix list the reference implementation catches
+(`AKIA`, `ASIA`, `ghp_`, `xoxb-`, `sk_live_`, `AIza`, and so on) is
+implementation detail. The normative surface is the category list in the
+Conformance criterion below.
+
 ## Conformance
 
 A conforming v0.2 packet:
