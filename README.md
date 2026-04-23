@@ -8,7 +8,7 @@ Git captures what a project is. `ltm` captures what it ran into: the dead ends, 
 
 ![ltm in action](demo.gif)
 
-That second layer is the part agents can't reconstruct from a repo. A fresh session on a different harness, a different machine, or just Monday morning starts from the diff and re-learns the rest by making the same mistakes. `ltm` is the smallest useful thing that stops that: a single-file JSON protocol (the [Core Memory Packet](./SPEC.md)) plus a CLI and server to move packets between sessions.
+That second layer is the part agents can't reconstruct from a repo. A fresh session on a different harness, a different machine, or just Monday morning starts from the diff and re-learns the rest by making the same mistakes. `ltm` is the smallest useful thing that stops that: a small JSON protocol (the [Core Memory Packet](./SPEC.md)) plus a CLI and server to move packets between sessions.
 
 A packet is a short dossier on one obstacle. Goal, decisions you've locked in, what you've already tried, what the next step is. Five required fields. Typical size: 2 to 5 KB. Forward-compatible. The 90% of work that went smoothly never needs a packet, because the commit log already carries that.
 
@@ -34,7 +34,15 @@ curl -fsSL https://ltm-cli.dev/install | sh
 
 Or from a checkout: `go build -o ltm ./cmd/ltm`.
 
-No server to connect to yet? `ltm example --resume` runs the whole flow against an embedded sample packet, so you can see what a resume looks like before signing up for anything.
+## See what a resume looks like
+
+No server, no account, no auth. One command runs the whole flow against an embedded sample packet and drops a resume block on your clipboard.
+
+```bash
+ltm example --resume
+```
+
+This is the same flow the demo above is showing. It's the fastest way to decide whether `ltm` is worth the next five minutes.
 
 ## Use it
 
@@ -81,7 +89,7 @@ One Go binary, SQLite on disk, bearer-token auth. HTTPS is your job: Caddy, ngin
 ```bash
 ltm server init --db ~/.local/share/ltm/ltm.db   # prints the root token, once
 ltm server --addr :8080
-ltm server issue-token <name>                    # more tokens for more machines
+ltm server issue-token laptop                    # name one token per machine (laptop, ci, ...)
 ```
 
 The reference server is bearer-token only. It does not implement OAuth device flow (RFC 8628) today, so clients pointed at it should use `ltm auth <host> <token>`. The managed hub implements device flow through Doorkeeper; a second implementation of the ltm protocol is free to do the same, and `ltm auth <host>` will then work against it.
