@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.8.1](https://github.com/dennisdevulder/ltm/compare/v0.8.0...v0.8.1) (2026-04-23)
+
+
+### Documentation
+
+* add demo GIF to README ([#21](https://github.com/dennisdevulder/ltm/issues/21)) ([4abb17c](https://github.com/dennisdevulder/ltm/commit/4abb17c8341df17efae75186f0e15dc5a09cfd4b))
+* launch-readiness pass (redaction section, SECURITY, CONTRIBUTIN… ([#26](https://github.com/dennisdevulder/ltm/issues/26)) ([c867c97](https://github.com/dennisdevulder/ltm/commit/c867c977a2d2334b9151090352cb6b9424729d27))
+* surface mcp integration on the website ([#23](https://github.com/dennisdevulder/ltm/issues/23)) ([6bcc445](https://github.com/dennisdevulder/ltm/commit/6bcc4453296b2296f4b4c38e7cc69b6746f110a7))
+* **website:** reframe the pitch around obstacle memory ([#25](https://github.com/dennisdevulder/ltm/issues/25)) ([d8490ce](https://github.com/dennisdevulder/ltm/commit/d8490cea78074aa06c11bb216d565fa4c5bcef10))
+
 ## [0.8.0](https://github.com/dennisdevulder/ltm/compare/v0.7.2...v0.8.0) (2026-04-22)
 
 
