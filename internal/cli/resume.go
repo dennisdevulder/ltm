@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/atotto/clipboard"
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 
@@ -126,12 +127,15 @@ func pickPacketID(cl *client) (string, error) {
 	}
 
 	var chosen string
-	err = huh.NewSelect[string]().
-		Title("Resume which memory?").
-		Description("↑ ↓ to navigate · ⏎ to select · esc to cancel").
-		Options(opts...).
-		Value(&chosen).
-		Run()
+	err = huh.NewForm(
+		huh.NewGroup(
+			huh.NewSelect[string]().
+				Title("Resume which memory?").
+				Description("↑ ↓ to navigate · ⏎ to select · esc to cancel").
+				Options(opts...).
+				Value(&chosen),
+		),
+	).WithKeyMap(pickerKeyMap()).Run()
 	if err != nil {
 		if errors.Is(err, huh.ErrUserAborted) {
 			return "", nil
@@ -139,6 +143,19 @@ func pickPacketID(cl *client) (string, error) {
 		return "", err
 	}
 	return chosen, nil
+}
+
+// pickerKeyMap returns huh's default keymap with Quit widened to include esc
+// so the picker can be cancelled without Ctrl+C. huh v1.0.0 binds Quit to
+// Ctrl+C only by default; esc is otherwise bound to disabled filter actions
+// on Select and is silently swallowed.
+func pickerKeyMap() *huh.KeyMap {
+	km := huh.NewDefaultKeyMap()
+	km.Quit = key.NewBinding(
+		key.WithKeys("ctrl+c", "esc"),
+		key.WithHelp("esc", "cancel"),
+	)
+	return km
 }
 
 // ---- rendering ----

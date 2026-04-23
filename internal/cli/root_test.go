@@ -241,7 +241,7 @@ func TestNewRootCmd_WiresSubcommands(t *testing.T) {
 	// wire-up would silently hide a command from `--help` and from users.
 	root := NewRootCmd()
 	want := []string{
-		"config", "auth", "push", "pull", "ls", "show", "rm", "resume", "update", "server",
+		"config", "auth", "push", "save", "pull", "ls", "show", "rm", "resume", "update", "server",
 	}
 	got := map[string]bool{}
 	for _, sub := range root.Commands() {

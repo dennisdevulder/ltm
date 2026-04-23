@@ -19,60 +19,71 @@ func newPushCmd() *cobra.Command {
 		Short: "Send a packet to your server. Use '-' to read from stdin.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// read input
-			var raw []byte
-			var err error
-			if args[0] == "-" {
-				raw, err = io.ReadAll(os.Stdin)
-			} else {
-				raw, err = os.ReadFile(args[0])
-			}
+			raw, err := readPacketInput(args[0])
 			if err != nil {
 				return err
 			}
-
-			// validate
-			if !lenient {
-				if err := packet.Validate(raw); err != nil {
-					return fmt.Errorf("packet rejected: %w", err)
-				}
-			}
-
-			p, err := packet.Parse(raw)
-			if err != nil && !lenient {
-				return err
-			}
-
-			// redact pre-flight
-			if p != nil && !allowUnredacted {
-				if issues := packet.Redact(p); len(issues) > 0 {
-					fmt.Fprintln(os.Stderr, "packet contains redactable content — refusing to push.")
-					for _, i := range issues {
-						fmt.Fprintf(os.Stderr, "  - %s\n", i.String())
-					}
-					fmt.Fprintln(os.Stderr, "pass --allow-unredacted to override (not recommended).")
-					return fmt.Errorf("redaction failed")
-				}
-			}
-
-			// send
-			cl, err := newClient()
+			id, err := validateAndPushPacket(raw, lenient, allowUnredacted)
 			if err != nil {
 				return err
 			}
-			resp, err := cl.do("POST", "/v1/packets", raw)
-			if err != nil {
-				return err
-			}
-			defer resp.Body.Close()
-			if err := errFromResponse(resp); err != nil {
-				return err
-			}
-			fmt.Println(p.ID)
+			fmt.Println(id)
 			return nil
 		},
 	}
 	c.Flags().BoolVar(&allowUnredacted, "allow-unredacted", false, "skip the redaction pre-flight")
 	c.Flags().BoolVar(&lenient, "lenient", false, "skip schema validation")
 	return c
+}
+
+// readPacketInput reads a packet body from a file path or from stdin when arg == "-".
+func readPacketInput(arg string) ([]byte, error) {
+	if arg == "-" {
+		return io.ReadAll(os.Stdin)
+	}
+	return os.ReadFile(arg)
+}
+
+// validateAndPushPacket runs the same validate → redact → POST pipeline that
+// push and save share. lenient skips schema validation; allowUnredacted skips
+// the secret/abs-path pre-flight. Returns the server-assigned packet ID.
+func validateAndPushPacket(raw []byte, lenient, allowUnredacted bool) (string, error) {
+	if !lenient {
+		if err := packet.Validate(raw); err != nil {
+			return "", fmt.Errorf("packet rejected: %w", err)
+		}
+	}
+
+	p, err := packet.Parse(raw)
+	if err != nil && !lenient {
+		return "", err
+	}
+
+	if p != nil && !allowUnredacted {
+		if issues := packet.Redact(p); len(issues) > 0 {
+			fmt.Fprintln(os.Stderr, "packet contains redactable content — refusing to push.")
+			for _, i := range issues {
+				fmt.Fprintf(os.Stderr, "  - %s\n", i.String())
+			}
+			fmt.Fprintln(os.Stderr, "pass --allow-unredacted to override (not recommended).")
+			return "", fmt.Errorf("redaction failed")
+		}
+	}
+
+	cl, err := newClient()
+	if err != nil {
+		return "", err
+	}
+	resp, err := cl.do("POST", "/v1/packets", raw)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if err := errFromResponse(resp); err != nil {
+		return "", err
+	}
+	if p == nil {
+		return "", nil
+	}
+	return p.ID, nil
 }

@@ -240,6 +240,25 @@ func toolDefinitions() []toolDef {
 			},
 		},
 		{
+			Name: "save",
+			Description: "Save the current session as a Core Memory Packet. Build the packet JSON from the active conversation — goal, locked decisions, failed attempts, open questions, next step — and pass it as 'packet'. " +
+				"Same validation and redaction as 'push'; use this when the intent is 'persist my session' rather than 'ship a pre-built packet'.",
+			InputSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"packet": map[string]any{
+						"type":        "object",
+						"description": "The full Core Memory Packet JSON synthesized from the current session.",
+					},
+					"allow_unredacted": map[string]any{
+						"type":        "boolean",
+						"description": "Skip the redaction pre-flight. Only set true when the caller has already reviewed the content.",
+					},
+				},
+				"required": []string{"packet"},
+			},
+		},
+		{
 			Name:        "rm",
 			Description: "Delete a packet by ID from the server. Destructive — confirm with the user before calling.",
 			InputSchema: map[string]any{
@@ -286,6 +305,8 @@ func handleToolCall(req *rpcRequest) rpcResponse {
 	case "resume":
 		text, err = toolResume(params.Arguments)
 	case "push":
+		text, err = toolPush(params.Arguments)
+	case "save":
 		text, err = toolPush(params.Arguments)
 	case "rm":
 		text, err = toolRm(params.Arguments)
