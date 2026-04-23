@@ -90,6 +90,25 @@ newer should also work.
   under `website/`.
 - Sign off is not required.
 
+## LLM-assisted contributions
+
+ltm itself is written with LLM assistance. Contributors are welcome to do the
+same; what we ask is that you say so. The project follows the disclosure half
+of the [Linux kernel's AI Coding Assistants policy](https://docs.kernel.org/process/coding-assistants.html):
+
+- If a coding agent helped write a commit, add an `Assisted-by:` trailer
+  naming the tool and model, e.g. `Assisted-by: Claude:claude-opus-4-7`.
+  Don't list basic tools (git, gcc, editors); do list coding agents and
+  specialized static-analysis helpers.
+- A human is accountable for every patch. Read the diff as if you had
+  written each line. If the agent produced something you can't explain,
+  that's the line to fix or drop, not the line to ship.
+- Agents do not sign off on anything. We don't require DCO today; if that
+  changes, a human adds the trailer, never the tool.
+
+Honest disclosure is a weaker review burden on maintainers than unflagged
+AI-generated code, not a stronger one. We'd rather know.
+
 ## Security issues
 
 See [SECURITY.md](./SECURITY.md). TL;DR: use GitHub's private security
