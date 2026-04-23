@@ -595,43 +595,15 @@ per packet</div></div>
       with <span class="m">--allow-unredacted</span>, but they have to say so
       out loud.
     </p>
-    <div class="scope">
-      <div class="in">
-        <h5>BLOCKED BEFORE UPLOAD</h5>
-        <ul>
-          <li><span class="m">×</span>Absolute paths: <span class="m">/Users/…</span>, <span class="m">/home/…</span>, <span class="m">/opt/…</span>, <span class="m">/var/…</span>, <span class="m">/etc/…</span>, <span class="m">/root/…</span>, <span class="m">C:\…</span></li>
-          <li><span class="m">×</span>AWS access-key and ARN prefixes: <span class="m">AKIA</span>, <span class="m">ASIA</span>, <span class="m">AGPA</span>, <span class="m">AIDA</span>, <span class="m">AROA</span>, <span class="m">AIPA</span>, <span class="m">ANPA</span>, <span class="m">ANVA</span>, <span class="m">ABIA</span>, <span class="m">ACCA</span></li>
-          <li><span class="m">×</span>GitHub tokens: <span class="m">ghp_</span>, <span class="m">gho_</span>, <span class="m">ghu_</span>, <span class="m">ghs_</span>, <span class="m">ghr_</span></li>
-          <li><span class="m">×</span>JWTs (three base64url segments, JOSE header)</li>
-          <li><span class="m">×</span>Private-key headers (<span class="m">BEGIN [RSA|EC|OPENSSH|] PRIVATE KEY</span>)</li>
-          <li><span class="m">×</span>Google API keys (<span class="m">AIza…</span>)</li>
-          <li><span class="m">×</span>Slack tokens: <span class="m">xoxa-</span>, <span class="m">xoxb-</span>, <span class="m">xoxp-</span>, <span class="m">xoxr-</span>, <span class="m">xoxs-</span></li>
-          <li><span class="m">×</span>Stripe keys and webhook secrets: <span class="m">sk_live_</span>, <span class="m">sk_test_</span>, <span class="m">rk_live_</span>, <span class="m">rk_test_</span>, <span class="m">whsec_</span></li>
-          <li><span class="m">×</span>SSH public keys: <span class="m">ssh-rsa</span>, <span class="m">ssh-ed25519</span>, <span class="m">ssh-dss</span>, <span class="m">ssh-ecdsa</span></li>
-        </ul>
-      </div>
-      <div class="out">
-        <h5>SCANNED SURFACE</h5>
-        <ul>
-          <li><span class="m">·</span><span class="m">goal</span>, <span class="m">next_step</span></li>
-          <li><span class="m">·</span><span class="m">success_criteria[]</span>, <span class="m">constraints[]</span></li>
-          <li><span class="m">·</span><span class="m">decisions[].what</span>, <span class="m">.why</span>, <span class="m">.consequences</span></li>
-          <li><span class="m">·</span><span class="m">methods[].when_applicable</span>, <span class="m">.how</span></li>
-          <li><span class="m">·</span><span class="m">attempts[].tried</span>, <span class="m">.learned</span></li>
-          <li><span class="m">·</span><span class="m">open_questions[]</span></li>
-          <li><span class="m">·</span>Structure fields (IDs, timestamps, version) are not content and are not scanned.</li>
-        </ul>
-      </div>
-    </div>
     <p class="note">
       This is a load-bearing trust property, not a checkbox. Packets are meant
       to move between machines, teams, and agents; the person writing a packet
       is not always the person reading it. The scanner is designed to be noisy
       rather than quiet: block a legitimate push and make the caller opt in,
-      rather than silently leak a credential. Implementation and test vectors
-      live in <span class="m">internal/packet/packet.go</span> (see
-      <span class="m">redactionPatterns</span>). A second implementation of
-      the protocol MUST ship this pre-flight before its first network call.
+      rather than silently leak a credential. The full pattern list and
+      scanned-field surface live in <span class="m">internal/packet/packet.go</span>
+      (see <span class="m">redactionPatterns</span>). A second implementation
+      of the protocol MUST ship this pre-flight before its first network call.
     </p>
   </section>
 
