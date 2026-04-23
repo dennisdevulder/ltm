@@ -233,17 +233,97 @@
 
   /* ————— responsive ————— */
   @media (max-width: 760px) {
-    .col { padding: 0 24px; }
-    .hero h1 { font-size: 44px; letter-spacing: -1.2px; }
-    .hero p.lede { font-size: 17px; }
+    .col { padding: 0 20px; }
+
+    /* Nav: let items wrap instead of running off the edge, and tighten gaps. */
+    .nav {
+      height: auto;
+      padding: 12px 0;
+      flex-wrap: wrap;
+      row-gap: 8px;
+    }
+    .nav-links { gap: 16px; font-size: 12px; flex-wrap: wrap; row-gap: 6px; }
+
+    /* Hero */
+    .hero { padding: 40px 0; }
+    .hero h1 { font-size: 40px; letter-spacing: -1px; }
+    .hero p.lede { font-size: 16px; margin-bottom: 32px; }
+    .hero-links { gap: 16px; flex-wrap: wrap; }
+    section.sec { padding: 40px 0; }
     .sec-t { font-size: 24px; }
-    .fm-row { grid-template-columns: 110px 1fr; }
-    .principle { grid-template-columns: 80px 1fr; }
-    .packet-grid { grid-template-columns: 1fr; }
+
+    .fm-row { grid-template-columns: 100px 1fr; font-size: 12px; }
+    .fm-k, .fm-v { padding: 8px 12px; }
+
+    /* Terminal blocks: wrap long lines (curl commands, MCP config) instead
+       of forcing horizontal scroll off-screen. overflow-wrap: anywhere lets
+       the browser break inside long URLs as a last resort. */
+    .t-head { padding: 6px 12px; }
+    .t-body { padding: 14px 16px; font-size: 13px; }
+    .t-body > div { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+    /* Principles */
+    .principle { grid-template-columns: 68px 1fr; }
+    .principle .tag { padding: 16px 12px; font-size: 10px; }
+    .principle .body { padding: 16px; }
+    .principle h4 { font-size: 16px; }
+
+    /* Packet */
+    .packet-grid { grid-template-columns: 1fr; gap: 16px; }
+    .packet-head { padding: 8px 12px; font-size: 10px; }
+    .packet-pre { font-size: 11px; padding: 10px 0; max-height: 420px; }
+    .pk-line { padding: 0 12px; gap: 10px; }
+    .pk-ln { min-width: 20px; font-size: 10px; }
+
+    /* Scope/redaction: stack, then swap the side border for a bottom one. */
     .scope { grid-template-columns: 1fr; }
-    .scope .in { border-right: none; border-bottom: 1px solid var(--rule); }
+    .scope .in { border-right: none; border-bottom: 1px solid var(--rule); padding: 18px; }
+    .scope .out { padding: 18px; }
+    .scope li { font-size: 14px; padding: 8px 0; }
+
+    /* Protocol verbs table: hide the example column, tighten padding. */
     table.verbs td.ex { display: none; }
     table.verbs th:nth-child(3) { display: none; }
+    table.verbs td, table.verbs th { padding: 10px 12px; }
+    table.verbs td.desc { font-size: 14px; }
+
+    /* Consent banner: stack text above buttons, full-width taps. */
+    .consent {
+      left: 12px; right: 12px; bottom: 12px;
+      flex-direction: column; align-items: stretch;
+      padding: 12px 14px; gap: 10px;
+    }
+    .consent .btns { gap: 8px; }
+    .consent button { flex: 1; padding: 8px; }
+
+    /* Footer */
+    footer { padding: 32px 0 48px; }
+    .f-row { gap: 20px; }
+    .f-links { flex-wrap: wrap; gap: 12px; }
+  }
+
+  /* ————— very narrow (phones ≤420px) ————— */
+  @media (max-width: 420px) {
+    .col { padding: 0 16px; }
+
+    /* Drop in-page anchors from the nav so the external links (platform,
+       github) don't wrap onto a third row. On a phone, scrolling to find
+       a section is cheaper than a dense nav bar. */
+    .nav-links a[href^="#"] { display: none; }
+
+    .hero { padding: 32px 0; }
+    .hero h1 { font-size: 32px; letter-spacing: -0.5px; }
+    .hero p.lede { font-size: 15px; }
+    .sec-t { font-size: 22px; }
+
+    .fm-row { grid-template-columns: 86px 1fr; font-size: 11px; }
+    .fm-k, .fm-v { padding: 8px 10px; }
+
+    .principle { grid-template-columns: 56px 1fr; }
+    .principle .tag { padding: 14px 8px; font-size: 9px; }
+    .principle .body { padding: 14px; }
+
+    .packet-pre { font-size: 10px; }
   }
 </style>
 </head>
