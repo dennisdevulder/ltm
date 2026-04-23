@@ -114,6 +114,12 @@ This is load-bearing, not cosmetic. The person writing the packet is not always 
 
 Packet sharing, team spaces, federation. Windows binaries (Linux and macOS only, amd64 and arm64). A portable conformance suite for second implementations; the Go reference tests stand in for one today. A fuzz and end-to-end harness on top of the existing unit and integration tests. Chaining is defined in the v0.2 schema (`parent_id`) but the server doesn't surface it yet.
 
+## How this is built
+
+ltm is written with LLM assistance, and says so out loud. A human drives the design, writes the prose, reviews every line, and is accountable for what lands; a coding agent helps with implementation. Commits touched by an agent carry an `Assisted-by:` trailer naming the tool — the same convention as the [Linux kernel's AI Coding Assistants policy](https://docs.kernel.org/process/coding-assistants.html). Disclosure, not disguise.
+
+If you send a PR that an LLM helped write, do the same: add an `Assisted-by:` trailer, read the diff as if you'd written it yourself, and own it. Details in [CONTRIBUTING.md](./CONTRIBUTING.md#llm-assisted-contributions).
+
 ## Further reading
 
 [SPEC.md](./SPEC.md) for the wire format and packet schema. [RESEARCH.md](./RESEARCH.md) for the literature review that shaped v0.2 (agent memory, prompt compression, case-based reasoning, ADRs). [CONTRIBUTING.md](./CONTRIBUTING.md) for how to propose changes and how to port a second implementation. [SECURITY.md](./SECURITY.md) for reporting issues.
