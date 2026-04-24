@@ -68,6 +68,30 @@ ltm example                                # print a valid packet, no server req
 ltm update                                 # upgrade in place
 ```
 
+### Teams
+
+Share a fixed set of packets with a fixed set of people on the same server. No per-packet request-and-approve handshake — membership is granted through a one-time invite URL, and once you're in, every packet pushed into the team is visible to every member.
+
+```bash
+ltm teams create alpha                     # you become the team owner
+ltm invite -t alpha                        # prints a single-use URL, valid for 7 days
+
+ltm push packet.json -t alpha              # push into the team instead of personal
+ltm ls -t alpha                            # list the team's packets
+
+ltm teams ls                               # teams you're a member of
+ltm teams members alpha                    # who's in a team
+ltm teams leave alpha                      # leave (owner must rm instead)
+```
+
+On the invitee's machine:
+
+```bash
+ltm join <url>                             # redeems the invite; mints a fresh token if none is stored
+```
+
+Teams are server-scoped. An invite issued on one server is not valid on another; there is no cross-server federation.
+
 ## Wire it into your agent (MCP)
 
 `ltm mcp` speaks the Model Context Protocol over stdio. It exposes the client verbs (`save`, `resume`, `ls`, `show`, `pull`, `push`, `rm`, `example`, `whoami`) as tools, and it reuses whatever `ltm auth` already stored. No second credential surface.
@@ -112,7 +136,7 @@ This is load-bearing, not cosmetic. The person writing the packet is not always 
 
 ## What's not here yet
 
-Packet sharing, team spaces, federation. Windows binaries (Linux and macOS only, amd64 and arm64). A portable conformance suite for second implementations; the Go reference tests stand in for one today. A fuzz and end-to-end harness on top of the existing unit and integration tests. Chaining is defined in the v0.2 schema (`parent_id`) but the server doesn't surface it yet.
+Direct share-by-username between users (one-off packet sharing without a team), federation. Windows binaries (Linux and macOS only, amd64 and arm64). A portable conformance suite for second implementations; the Go reference tests stand in for one today. A fuzz and end-to-end harness on top of the existing unit and integration tests. Chaining is defined in the v0.2 schema (`parent_id`) but the server doesn't surface it yet.
 
 ## How this is built
 

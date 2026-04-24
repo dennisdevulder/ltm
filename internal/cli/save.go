@@ -9,6 +9,7 @@ import (
 func newSaveCmd() *cobra.Command {
 	var allowUnredacted bool
 	var lenient bool
+	var team string
 
 	c := &cobra.Command{
 		Use:   "save [file | -]",
@@ -31,7 +32,7 @@ Same validation and redaction pre-flight as 'ltm push'.`,
 			if err != nil {
 				return err
 			}
-			id, err := validateAndPushPacket(raw, lenient, allowUnredacted)
+			id, err := validateAndPushPacket(raw, lenient, allowUnredacted, team)
 			if err != nil {
 				return err
 			}
@@ -41,5 +42,6 @@ Same validation and redaction pre-flight as 'ltm push'.`,
 	}
 	c.Flags().BoolVar(&allowUnredacted, "allow-unredacted", false, "skip the redaction pre-flight")
 	c.Flags().BoolVar(&lenient, "lenient", false, "skip schema validation")
+	c.Flags().StringVarP(&team, "team", "t", "", "save into this team instead of personal scope")
 	return c
 }

@@ -201,6 +201,28 @@ A conforming v0.2 packet:
 
 Non-conforming packets MAY be accepted by a server in lenient mode but MUST be flagged.
 
+## Scope (server-side)
+
+Packets on a server live in exactly one scope:
+
+- **Personal.** Owned by the user who pushed the packet. Visible only to
+  that user. This is the default and mirrors pre-teams behaviour.
+- **Team.** Scoped to a server-local team. Visible to every team member;
+  deletable by the packet creator or the team owner.
+
+Scope is a transport-layer concern only. The wire format of a packet does
+not change: there is no `scope`, `team`, or `owner` field in the Core
+Memory Packet schema. A packet is portable across scopes — moving one
+between personal and a team is a metadata-only operation on the server.
+Clients pick a scope at push time with a query parameter
+(`POST /v1/packets?team=<name>`); without it, the packet is personal.
+
+Teams are server-scoped: a team on one server has nothing to do with a
+team of the same name on another, and invite codes only work on the
+server that issued them. There is no federation or cross-server
+membership. Membership is granted through single-use, 7-day invite URLs;
+there are no public or subscribable teams.
+
 ## Versioning
 
 `ltm_version` is required on every packet and MUST match `\d+\.\d+`. Major bumps are breaking; minor bumps add optional fields only.

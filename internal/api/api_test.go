@@ -27,15 +27,27 @@ const (
 )
 
 // newTestServer wires up a Store + Server + httptest.Server and seeds one
-// valid bearer token. Returned URL is the base URL (no path).
+// valid bearer token bound to a root user. Returned URL is the base URL.
 func newTestServer(t *testing.T) (baseURL string, s *store.Store) {
+	ts, st, _ := newTestServerWithUser(t, testToken, "root")
+	return ts, st
+}
+
+// newTestServerWithUser is the parameterised harness. Returns the test
+// server's URL, the store (so tests can peek), and the seeded user id (so
+// tests can assert authz boundaries).
+func newTestServerWithUser(t *testing.T, token, display string) (baseURL string, s *store.Store, userID string) {
 	t.Helper()
 	dbPath := filepath.Join(t.TempDir(), "ltm.db")
 	st, err := store.Open(dbPath)
 	if err != nil {
 		t.Fatalf("store.Open: %v", err)
 	}
-	if err := st.PutTokenHash(context.Background(), auth.HashToken(testToken), "test"); err != nil {
+	uid := store.NewULID()
+	if err := st.PutUser(context.Background(), uid, "", display); err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+	if err := st.PutTokenHashForUser(context.Background(), auth.HashToken(token), display, uid); err != nil {
 		t.Fatalf("seed token: %v", err)
 	}
 
@@ -46,7 +58,7 @@ func newTestServer(t *testing.T) (baseURL string, s *store.Store) {
 		ts.Close()
 		_ = st.Close()
 	})
-	return ts.URL, st
+	return ts.URL, st, uid
 }
 
 func validPacketJSON(t *testing.T, id string) []byte {
@@ -374,7 +386,7 @@ func TestShutdown_ClosesStore(t *testing.T) {
 		t.Fatalf("Shutdown: %v", err)
 	}
 	// Subsequent DB ops should fail because the connection is closed.
-	if _, err := st.ListPackets(context.Background(), 10); err == nil {
+	if _, err := st.ListPacketsForOwner(context.Background(), "any", 10); err == nil {
 		t.Error("expected store operation to fail after Shutdown, got nil")
 	}
 }

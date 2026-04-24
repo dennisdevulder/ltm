@@ -23,6 +23,7 @@ import (
 func newServerCmd() *cobra.Command {
 	var dbPath string
 	var addr string
+	var externalURL string
 
 	c := &cobra.Command{
 		Use:   "server",
@@ -44,9 +45,15 @@ func newServerCmd() *cobra.Command {
 				return fmt.Errorf("no auth tokens in database. run 'ltm server init --db %s' first", dbPath)
 			}
 
+			apiSrv := api.New(s, log.Default())
+			if v := externalURL; v != "" {
+				apiSrv.ExternalURL = v
+			} else if v := os.Getenv("LTM_EXTERNAL_URL"); v != "" {
+				apiSrv.ExternalURL = v
+			}
 			srv := &http.Server{
 				Addr:              addr,
-				Handler:           api.New(s, log.Default()).Handler(),
+				Handler:           apiSrv.Handler(),
 				ReadHeaderTimeout: 10 * time.Second,
 			}
 
@@ -74,6 +81,8 @@ func newServerCmd() *cobra.Command {
 	}
 	c.Flags().StringVar(&dbPath, "db", defaultDBPath(), "SQLite database file")
 	c.Flags().StringVar(&addr, "addr", ":8080", "listen address")
+	c.Flags().StringVar(&externalURL, "external-url", "",
+		"public base URL used when minting invite links (defaults to the request Host, or $LTM_EXTERNAL_URL)")
 
 	init := &cobra.Command{
 		Use:   "init",
@@ -88,8 +97,12 @@ func newServerCmd() *cobra.Command {
 			}
 			defer s.Close()
 
+			rootID := store.NewULID()
+			if err := s.PutUser(cmd.Context(), rootID, "", "root"); err != nil {
+				return err
+			}
 			tok := packet.RandomToken()
-			if err := s.PutTokenHash(cmd.Context(), auth.HashToken(tok), "root"); err != nil {
+			if err := s.PutTokenHashForUser(cmd.Context(), auth.HashToken(tok), "root", rootID); err != nil {
 				return err
 			}
 
@@ -108,29 +121,56 @@ func newServerCmd() *cobra.Command {
 	init.Flags().StringVar(&dbPath, "db", defaultDBPath(), "SQLite database file")
 	c.AddCommand(init)
 
+	var issueEmail string
 	issue := &cobra.Command{
-		Use:   "issue-token <label>",
-		Short: "Issue a new bearer token.",
-		Args:  cobra.ExactArgs(1),
+		Use:   "issue-token <display-name>",
+		Short: "Issue a new bearer token bound to a user.",
+		Long: `Issue a bearer token. The token is bound to a user record: if --email
+matches an existing user, the token is added to them; otherwise a new
+user is created with the given display name.`,
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			display := args[0]
 			s, err := store.Open(dbPath)
 			if err != nil {
 				return err
 			}
 			defer s.Close()
-			tok := packet.RandomToken()
-			if err := s.PutTokenHash(cmd.Context(), auth.HashToken(tok), args[0]); err != nil {
+
+			userID, err := ensureUserByEmail(cmd.Context(), s, issueEmail, display)
+			if err != nil {
 				return err
 			}
-			fmt.Fprintf(os.Stderr, "issued token for %q (shown once):\n", args[0])
+			tok := packet.RandomToken()
+			if err := s.PutTokenHashForUser(cmd.Context(), auth.HashToken(tok), display, userID); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "issued token for %q (shown once):\n", display)
 			fmt.Println(tok)
 			return nil
 		},
 	}
 	issue.Flags().StringVar(&dbPath, "db", defaultDBPath(), "SQLite database file")
+	issue.Flags().StringVar(&issueEmail, "email", "", "bind the token to this email (creates or reuses the user)")
 	c.AddCommand(issue)
 
 	return c
+}
+
+// ensureUserByEmail returns an existing user id if one matches email, or
+// creates a fresh user with the given display name. Empty email always
+// creates a new user — we don't collapse anonymous entries.
+func ensureUserByEmail(ctx context.Context, s *store.Store, email, display string) (string, error) {
+	if email != "" {
+		if u, err := s.GetUserByEmail(ctx, email); err == nil {
+			return u.ID, nil
+		}
+	}
+	id := store.NewULID()
+	if err := s.PutUser(ctx, id, email, display); err != nil {
+		return "", err
+	}
+	return id, nil
 }
 
 func defaultDBPath() string {
