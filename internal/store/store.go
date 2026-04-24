@@ -75,7 +75,12 @@ type Store struct {
 }
 
 func Open(path string) (*Store, error) {
-	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)&_pragma=foreign_keys(on)")
+	// busy_timeout lets concurrent writers queue on the SQLite write lock
+	// instead of failing with SQLITE_BUSY. Without it, two simultaneous
+	// ConsumeInvite calls racing the same invite can both surface a
+	// database-is-locked error before either gets a chance to commit.
+	db, err := sql.Open("sqlite",
+		path+"?_pragma=journal_mode(WAL)&_pragma=foreign_keys(on)&_pragma=busy_timeout(5000)")
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
