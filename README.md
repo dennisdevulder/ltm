@@ -70,27 +70,16 @@ ltm update                                 # upgrade in place
 
 ### Teams
 
-Share a fixed set of packets with a fixed set of people on the same server. No per-packet request-and-approve handshake — membership is granted through a one-time invite URL, and once you're in, every packet pushed into the team is visible to every member.
+Share packets with a fixed set of people on the same server. Membership is granted through a single-use invite URL that expires in 7 days.
 
 ```bash
-ltm teams create alpha                     # you become the team owner
-ltm invite -t alpha                        # prints a single-use URL, valid for 7 days
-
-ltm push packet.json -t alpha              # push into the team instead of personal
-ltm ls -t alpha                            # list the team's packets
-
-ltm teams ls                               # teams you're a member of
-ltm teams members alpha                    # who's in a team
-ltm teams leave alpha                      # leave (owner must rm instead)
+ltm teams create alpha
+ltm invite -t alpha            # prints a URL to share
+ltm push packet.json -t alpha  # push into the team, not personal
+ltm ls -t alpha
 ```
 
-On the invitee's machine:
-
-```bash
-ltm join <url>                             # redeems the invite; mints a fresh token if none is stored
-```
-
-Teams are server-scoped. An invite issued on one server is not valid on another; there is no cross-server federation.
+On the invitee's machine: `ltm join <url>`.
 
 ## Wire it into your agent (MCP)
 
