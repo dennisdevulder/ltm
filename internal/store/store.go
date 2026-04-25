@@ -755,9 +755,68 @@ func (s *Store) ConsumeInvite(ctx context.Context, code, userID string, now time
 	return s.GetInvite(ctx, code)
 }
 
+// ConsumeInviteForExistingUser atomically consumes an invite on behalf of
+// an already-authenticated userID and adds them as a team member, in one
+// transaction. Mirror of RedeemInviteAsNewUser for the auth path.
+//
+// Without this single-tx wrapping, a crash or DB error between
+// ConsumeInvite and AddTeamMember would burn the invite without granting
+// membership — the user could not retry because the code is single-use.
+//
+// Returns the consumed invite (so the handler can read team_id) and
+// ErrInviteGone if the code is missing, expired, or already consumed.
+func (s *Store) ConsumeInviteForExistingUser(ctx context.Context, code, userID string, now time.Time) (*Invite, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	nowStr := now.UTC().Format(time.RFC3339Nano)
+	res, err := tx.ExecContext(ctx,
+		`UPDATE invites SET consumed_at = ?, consumed_by = ?
+		 WHERE code = ? AND consumed_at IS NULL AND expires_at > ?`,
+		nowStr, userID, code, nowStr,
+	)
+	if err != nil {
+		return nil, err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return nil, err
+	}
+	if n == 0 {
+		return nil, ErrInviteGone
+	}
+
+	var teamID string
+	if err := tx.QueryRowContext(ctx,
+		`SELECT team_id FROM invites WHERE code = ?`, code,
+	).Scan(&teamID); err != nil {
+		return nil, err
+	}
+	if _, err := tx.ExecContext(ctx,
+		`INSERT INTO team_members (team_id, user_id, role, joined_at) VALUES (?, ?, 'member', ?)
+		 ON CONFLICT(team_id, user_id) DO NOTHING`,
+		teamID, userID, nowStr,
+	); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	// Read back to populate the returned Invite.
+	return s.GetInvite(ctx, code)
+}
+
 // RedeemInviteAsNewUser atomically mints a fresh user, binds tokenHash to
 // them, consumes the invite (single-use, expiry-checked at now), and adds
 // the new user as a member of the invite's team — all in one transaction.
+//
+// display may be empty: when it is, a default of "invited-<last 6 chars of
+// userID>" is used. The fallback intentionally uses the user's ULID and
+// not the invite code — invite codes are sensitive single-use bearers,
+// and a permanent user record shouldn't carry their prefix.
 //
 // The conditional UPDATE on invites is what guards single-use semantics
 // across concurrent callers. When that UPDATE matches zero rows (race lost
@@ -773,6 +832,9 @@ func (s *Store) RedeemInviteAsNewUser(ctx context.Context, code, display, tokenH
 	defer tx.Rollback()
 
 	userID = NewULID()
+	if display == "" {
+		display = "invited-" + userID[len(userID)-6:]
+	}
 	nowStr := now.UTC().Format(time.RFC3339Nano)
 	if _, err := tx.ExecContext(ctx,
 		`INSERT INTO users (id, email, display, created_at) VALUES (?, NULL, ?, ?)`,

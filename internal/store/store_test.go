@@ -645,6 +645,109 @@ func TestConsumeInvite_ExpiredIsGone(t *testing.T) {
 	}
 }
 
+// ---- RedeemInviteAsNewUser display fallback ----
+
+func TestRedeemInviteAsNewUser_DisplayFallbackUsesUserID(t *testing.T) {
+	// Empty display should yield "invited-<userID tail>", not anything
+	// derived from the invite code. Documents the privacy choice: invite
+	// codes are sensitive single-use bearers and shouldn't leak into
+	// permanent user records.
+	s := openTestStore(t)
+	ctx := context.Background()
+	owner := seedUser(t, s, "alice")
+	teamID := seedTeam(t, s, "alpha", owner)
+	now := time.Now().UTC()
+	_ = s.CreateInvite(ctx, "code-with-known-prefix", teamID, owner, now.Add(7*24*time.Hour))
+
+	uid, _, err := s.RedeemInviteAsNewUser(ctx, "code-with-known-prefix", "", "tokhash", now)
+	if err != nil {
+		t.Fatalf("RedeemInviteAsNewUser: %v", err)
+	}
+	u, err := s.GetUser(ctx, uid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantSuffix := uid[len(uid)-6:]
+	want := "invited-" + wantSuffix
+	if u.Display != want {
+		t.Errorf("display = %q, want %q", u.Display, want)
+	}
+	if strings.Contains(u.Display, "code-with") {
+		t.Errorf("display %q leaks invite code prefix", u.Display)
+	}
+}
+
+func TestRedeemInviteAsNewUser_RespectsExplicitDisplay(t *testing.T) {
+	// A non-empty display should be used verbatim — the fallback only
+	// kicks in when the caller didn't supply one.
+	s := openTestStore(t)
+	ctx := context.Background()
+	owner := seedUser(t, s, "alice")
+	teamID := seedTeam(t, s, "alpha", owner)
+	now := time.Now().UTC()
+	_ = s.CreateInvite(ctx, "code1", teamID, owner, now.Add(7*24*time.Hour))
+
+	uid, _, err := s.RedeemInviteAsNewUser(ctx, "code1", "carol", "tokhash", now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	u, _ := s.GetUser(ctx, uid)
+	if u.Display != "carol" {
+		t.Errorf("display = %q, want carol", u.Display)
+	}
+}
+
+// ---- ConsumeInviteForExistingUser ----
+
+func TestConsumeInviteForExistingUser_HappyPath(t *testing.T) {
+	s := openTestStore(t)
+	ctx := context.Background()
+	owner := seedUser(t, s, "alice")
+	bob := seedUser(t, s, "bob")
+	teamID := seedTeam(t, s, "alpha", owner)
+	now := time.Now().UTC()
+	_ = s.CreateInvite(ctx, "code1", teamID, owner, now.Add(7*24*time.Hour))
+
+	inv, err := s.ConsumeInviteForExistingUser(ctx, "code1", bob, now)
+	if err != nil {
+		t.Fatalf("ConsumeInviteForExistingUser: %v", err)
+	}
+	if inv.TeamID != teamID {
+		t.Errorf("inv.TeamID = %q, want %q", inv.TeamID, teamID)
+	}
+	role, _ := s.TeamMembership(ctx, teamID, bob)
+	if role != "member" {
+		t.Errorf("bob role = %q, want member", role)
+	}
+}
+
+func TestConsumeInviteForExistingUser_GoneRollsBackMembership(t *testing.T) {
+	// If the invite is already consumed, the membership insert must not
+	// happen — the whole tx rolls back.
+	s := openTestStore(t)
+	ctx := context.Background()
+	owner := seedUser(t, s, "alice")
+	bob := seedUser(t, s, "bob")
+	carol := seedUser(t, s, "carol")
+	teamID := seedTeam(t, s, "alpha", owner)
+	now := time.Now().UTC()
+	_ = s.CreateInvite(ctx, "code1", teamID, owner, now.Add(7*24*time.Hour))
+
+	if _, err := s.ConsumeInviteForExistingUser(ctx, "code1", bob, now); err != nil {
+		t.Fatal(err)
+	}
+	// Carol racing the now-consumed code: must get ErrInviteGone and
+	// must NOT be added as a member.
+	_, err := s.ConsumeInviteForExistingUser(ctx, "code1", carol, now)
+	if !errors.Is(err, ErrInviteGone) {
+		t.Errorf("err = %v, want ErrInviteGone", err)
+	}
+	role, _ := s.TeamMembership(ctx, teamID, carol)
+	if role != "" {
+		t.Errorf("carol role = %q, want empty (tx rollback)", role)
+	}
+}
+
 // ---- meta ----
 
 func TestOpen_WALModeEnabled(t *testing.T) {

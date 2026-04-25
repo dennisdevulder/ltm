@@ -547,8 +547,11 @@ func (s *Server) acceptInvite(w http.ResponseWriter, r *http.Request) {
 		tokenPlain string
 	)
 	if existingUID != "" {
+		// Atomic consume + AddTeamMember in one tx. If the second insert
+		// fails, the consume rolls back too, so the user can retry the
+		// same invite — no partially-applied state.
 		uid = existingUID
-		inv, err := s.Store.ConsumeInvite(r.Context(), code, uid, s.now())
+		inv, err := s.Store.ConsumeInviteForExistingUser(r.Context(), code, uid, s.now())
 		if err != nil {
 			if errors.Is(err, store.ErrInviteGone) {
 				writeErr(w, http.StatusGone, "invite expired or already consumed")
@@ -558,25 +561,15 @@ func (s *Server) acceptInvite(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		teamID = inv.TeamID
-		if err := s.Store.AddTeamMember(r.Context(), teamID, uid, "member"); err != nil {
-			writeErr(w, http.StatusInternalServerError, err.Error())
-			return
-		}
 	} else {
 		// Unauthed: atomic mint+consume+join. A losing race rolls back the
 		// speculative user + token inserts, so concurrent callers don't
-		// leave orphan rows behind.
+		// leave orphan rows behind. The store owns the display fallback
+		// (uses the minted user id's tail) so we just pass whatever the
+		// caller sent verbatim — empty is fine.
 		tokenPlain = packet.RandomToken()
-		// We don't know the user id yet — the store mints one. Synthesize
-		// a default display from the about-to-be-minted id's tail by
-		// letting the store fill in. We pass a placeholder display the
-		// store will use verbatim; readability beats round-tripping.
-		display := displayName
-		if display == "" {
-			display = "invited-" + code[:6]
-		}
 		newUID, newTeamID, err := s.Store.RedeemInviteAsNewUser(
-			r.Context(), code, display, auth.HashToken(tokenPlain), s.now())
+			r.Context(), code, displayName, auth.HashToken(tokenPlain), s.now())
 		if err != nil {
 			if errors.Is(err, store.ErrInviteGone) {
 				writeErr(w, http.StatusGone, "invite expired or already consumed")
