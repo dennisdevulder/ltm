@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.9.0](https://github.com/dennisdevulder/ltm/compare/v0.8.2...v0.9.0) (2026-04-25)
+
+
+### Features
+
+* **teams:** server-scoped teams with invite-only membership ([#41](https://github.com/dennisdevulder/ltm/issues/41)) ([f61af79](https://github.com/dennisdevulder/ltm/commit/f61af794e8ceb438dfb5ff55798e4bdc7233efcf))
+
+
+### Bug Fixes
+
+* **website:** 20px body padding on mobile and tablet ([#36](https://github.com/dennisdevulder/ltm/issues/36)) ([08d5932](https://github.com/dennisdevulder/ltm/commit/08d59327026a61f80d30e6419ededd1f02f09b77))
+* **website:** drop the redaction patterns table ([#37](https://github.com/dennisdevulder/ltm/issues/37)) ([478de7c](https://github.com/dennisdevulder/ltm/commit/478de7c709226628f5a82b689c69d9498c8961ce))
+* **website:** lock zoom, kill side-scroll, widen phone gutters ([#33](https://github.com/dennisdevulder/ltm/issues/33)) ([3c8c27e](https://github.com/dennisdevulder/ltm/commit/3c8c27e9a246d371c653f4ed082524bbd3d294c9))
+* **website:** make the layout usable on phones ([#31](https://github.com/dennisdevulder/ltm/issues/31)) ([f6eeb4b](https://github.com/dennisdevulder/ltm/commit/f6eeb4bd9d4ece8d147722f8589ef0365deca976))
+* **website:** wider phone gutters, align hero with README tonality ([#34](https://github.com/dennisdevulder/ltm/issues/34)) ([b2a4fc2](https://github.com/dennisdevulder/ltm/commit/b2a4fc2b8bf46079b48e764087e1244fc1c7f204))
+
+
+### Documentation
+
+* **readme:** polish pass before launch ([#38](https://github.com/dennisdevulder/ltm/issues/38)) ([9212f23](https://github.com/dennisdevulder/ltm/commit/9212f237165063ab61ba7621f2c6ecb24b6915a6))
+
 ## [0.8.2](https://github.com/dennisdevulder/ltm/compare/v0.8.1...v0.8.2) (2026-04-23)
 
 
