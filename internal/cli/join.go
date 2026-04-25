@@ -80,9 +80,16 @@ func redeemInvite(host, code string) error {
 		if err := auth.SaveToken(parsed.Token); err != nil {
 			return err
 		}
-		cfg, _ := config.Load()
-		_ = cfg.Set("host", host)
-		_ = cfg.Save()
+		cfg, err := config.Load()
+		if err != nil {
+			return fmt.Errorf("load config: %w", err)
+		}
+		if err := cfg.Set("host", host); err != nil {
+			return fmt.Errorf("set host: %w", err)
+		}
+		if err := cfg.Save(); err != nil {
+			return fmt.Errorf("save config: %w", err)
+		}
 		fmt.Println("✓ authenticated")
 		fmt.Println("✓ default host set to", host)
 	}

@@ -416,3 +416,67 @@ func TestCreatePacket_StoresCanonicalForm(t *testing.T) {
 		t.Errorf("parsed id = %q, want %q", p.ID, validID)
 	}
 }
+
+// ---- invite URL header / fallback behaviour ----
+
+// mintInviteAndReadURL creates a team and an invite, returning the URL
+// the server printed back. extraHeaders are sent on the create-invite
+// request — used to drive X-Forwarded-* behaviour.
+func mintInviteAndReadURL(t *testing.T, baseURL string, extraHeaders map[string]string) string {
+	t.Helper()
+	teamReq, _ := http.NewRequest("POST", baseURL+"/v1/teams",
+		bytes.NewReader([]byte(`{"name":"alpha"}`)))
+	teamReq.Header.Set("Authorization", "Bearer "+testToken)
+	teamReq.Header.Set("Content-Type", "application/json")
+	tr, err := http.DefaultClient.Do(teamReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tr.Body.Close()
+	if tr.StatusCode != http.StatusCreated {
+		t.Fatalf("seed team status = %d", tr.StatusCode)
+	}
+
+	invReq, _ := http.NewRequest("POST", baseURL+"/v1/teams/alpha/invites",
+		bytes.NewReader([]byte(`{}`)))
+	invReq.Header.Set("Authorization", "Bearer "+testToken)
+	invReq.Header.Set("Content-Type", "application/json")
+	for k, v := range extraHeaders {
+		invReq.Header.Set(k, v)
+	}
+	resp, err := http.DefaultClient.Do(invReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("invite status = %d", resp.StatusCode)
+	}
+	var body struct {
+		URL string `json:"url"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	return body.URL
+}
+
+func TestInviteURL_HonorsForwardedProto(t *testing.T) {
+	url, _ := newTestServer(t)
+	got := mintInviteAndReadURL(t, url, map[string]string{
+		"X-Forwarded-Proto": "https",
+		"X-Forwarded-Host":  "ltm.example.com",
+	})
+	const want = "https://ltm.example.com/v1/invites/"
+	if !strings.HasPrefix(got, want) {
+		t.Errorf("invite url = %q, want prefix %q", got, want)
+	}
+}
+
+func TestInviteURL_FallbackWhenNoForwardedHeaders(t *testing.T) {
+	url, _ := newTestServer(t)
+	got := mintInviteAndReadURL(t, url, nil)
+	if !strings.HasPrefix(got, url+"/v1/invites/") {
+		t.Errorf("invite url = %q, want prefix %q", got, url+"/v1/invites/")
+	}
+}

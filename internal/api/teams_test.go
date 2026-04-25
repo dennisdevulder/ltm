@@ -232,23 +232,23 @@ func TestPackets_PushPersonalVsTeam_AreSeparate(t *testing.T) {
 	}
 }
 
-func TestPackets_NonMemberCannotReadTeamScope(t *testing.T) {
+func TestPackets_NonMemberListHides404(t *testing.T) {
 	e := newTeamEnv(t)
 	_ = e.do(t, "POST", "/v1/teams", map[string]string{"name": "alpha"}, e.aliceToken).Body.Close()
 	resp := e.do(t, "POST", "/v1/packets?team=alpha", json.RawMessage(validPacketJSON(t, validID)), e.aliceToken)
 	resp.Body.Close()
 
-	// Bob (non-member) listing → 403.
+	// Bob (non-member) listing → 404, identical to a missing team.
 	resp = e.do(t, "GET", "/v1/packets?team=alpha", nil, e.bobToken)
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusForbidden {
-		t.Errorf("non-member list: status = %d, want 403", resp.StatusCode)
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("non-member list: status = %d, want 404", resp.StatusCode)
 	}
 }
 
-func TestPackets_NonMemberPushTo403UsesTeamExists(t *testing.T) {
+func TestPackets_NonMemberPushHides404(t *testing.T) {
 	// A non-member pushing with a valid team name that exists must not leak
-	// existence: issue spec asks for 404, not 403.
+	// existence: 404, not 403, identical to a missing team.
 	e := newTeamEnv(t)
 	_ = e.do(t, "POST", "/v1/teams", map[string]string{"name": "alpha"}, e.aliceToken).Body.Close()
 	resp := e.do(t, "POST", "/v1/packets?team=alpha", json.RawMessage(validPacketJSON(t, validID)), e.bobToken)
@@ -304,7 +304,7 @@ func TestInvites_AcceptUnauthenticatedMintsTokenAndJoins(t *testing.T) {
 
 	// Unauthenticated accept — server mints a fresh user + token.
 	resp = e.do(t, "POST", "/v1/invites/"+code+"/accept", map[string]any{"display": "carol"}, "")
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("accept: status = %d, body: %s", resp.StatusCode, mustBody(resp))
 	}
 	body := asJSON(t, resp)
@@ -360,6 +360,139 @@ func TestInvites_SecondRedeemIs410(t *testing.T) {
 	}
 }
 
+// TestInvites_ConcurrentAcceptDoesNotLeakOrphanRows hammers a single live
+// invite with N unauthenticated /accept calls in parallel. Exactly one
+// caller should see 201 and a minted token; the other N-1 should see 410.
+// Critically: users + tokens row counts must grow by exactly 1, proving
+// that the atomic mint+consume tx rolls back the speculative inserts on
+// the losing branches.
+func TestInvites_ConcurrentAcceptDoesNotLeakOrphanRows(t *testing.T) {
+	e := newTeamEnv(t)
+	_ = e.do(t, "POST", "/v1/teams", map[string]string{"name": "alpha"}, e.aliceToken).Body.Close()
+	resp := e.do(t, "POST", "/v1/teams/alpha/invites", map[string]any{}, e.aliceToken)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create invite: status = %d", resp.StatusCode)
+	}
+	code := asJSON(t, resp)["code"].(string)
+
+	ctx := context.Background()
+	usersBefore, _ := e.store.CountUsers(ctx)
+	tokensBefore, _ := e.store.CountTokens(ctx)
+
+	const parallel = 16
+	results := make(chan int, parallel)
+	start := make(chan struct{})
+	for i := 0; i < parallel; i++ {
+		go func() {
+			<-start
+			r := e.do(t, "POST", "/v1/invites/"+code+"/accept", map[string]any{}, "")
+			r.Body.Close()
+			results <- r.StatusCode
+		}()
+	}
+	close(start)
+
+	var created, gone int
+	for i := 0; i < parallel; i++ {
+		switch <-results {
+		case http.StatusCreated:
+			created++
+		case http.StatusGone:
+			gone++
+		default:
+		}
+	}
+	if created != 1 {
+		t.Errorf("created = %d, want exactly 1", created)
+	}
+	if gone != parallel-1 {
+		t.Errorf("gone = %d, want %d", gone, parallel-1)
+	}
+
+	usersAfter, _ := e.store.CountUsers(ctx)
+	tokensAfter, _ := e.store.CountTokens(ctx)
+	if usersAfter-usersBefore != 1 {
+		t.Errorf("users grew by %d, want 1 (before=%d after=%d)", usersAfter-usersBefore, usersBefore, usersAfter)
+	}
+	if tokensAfter-tokensBefore != 1 {
+		t.Errorf("tokens grew by %d, want 1 (before=%d after=%d)", tokensAfter-tokensBefore, tokensBefore, tokensAfter)
+	}
+}
+
+// ---- 404-hiding posture ----
+
+// inviteForTeam creates a team and returns its name. Lets the existence-
+// hiding tests share boilerplate without copy-pasting alice setup.
+func (e *teamTestEnv) seedTeam(t *testing.T, name string) {
+	t.Helper()
+	resp := e.do(t, "POST", "/v1/teams", map[string]string{"name": name}, e.aliceToken)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("seed team %q: status = %d", name, resp.StatusCode)
+	}
+	resp.Body.Close()
+}
+
+// nonMemberHidesAsNotFound asserts that a non-member request against an
+// existing team returns 404 — bit-equivalent to a missing team. The test
+// grabs both responses and compares status codes only; bodies may differ
+// trivially (e.g. id-bearing payloads), but for the routes we apply this
+// to, both branches go through the same `team not found` error path.
+func nonMemberHidesAsNotFound(t *testing.T, e *teamTestEnv, method, pathExisting, pathMissing string) {
+	t.Helper()
+	respExisting := e.do(t, method, pathExisting, nil, e.bobToken)
+	defer respExisting.Body.Close()
+	respMissing := e.do(t, method, pathMissing, nil, e.bobToken)
+	defer respMissing.Body.Close()
+	if respExisting.StatusCode != http.StatusNotFound {
+		t.Errorf("existing team as non-member: status = %d, want 404", respExisting.StatusCode)
+	}
+	if respMissing.StatusCode != http.StatusNotFound {
+		t.Errorf("missing team: status = %d, want 404", respMissing.StatusCode)
+	}
+}
+
+func TestTeams_NonMemberMembersList_Hides404(t *testing.T) {
+	e := newTeamEnv(t)
+	e.seedTeam(t, "alpha")
+	nonMemberHidesAsNotFound(t, e, "GET", "/v1/teams/alpha/members", "/v1/teams/ghost/members")
+}
+
+func TestTeams_NonMemberCreateInvite_Hides404(t *testing.T) {
+	e := newTeamEnv(t)
+	e.seedTeam(t, "alpha")
+	respExisting := e.do(t, "POST", "/v1/teams/alpha/invites", map[string]any{}, e.bobToken)
+	defer respExisting.Body.Close()
+	respMissing := e.do(t, "POST", "/v1/teams/ghost/invites", map[string]any{}, e.bobToken)
+	defer respMissing.Body.Close()
+	if respExisting.StatusCode != http.StatusNotFound {
+		t.Errorf("existing team invite as non-member: %d, want 404", respExisting.StatusCode)
+	}
+	if respMissing.StatusCode != http.StatusNotFound {
+		t.Errorf("missing team invite: %d, want 404", respMissing.StatusCode)
+	}
+}
+
+func TestTeams_NonMemberDeleteTeam_Hides404(t *testing.T) {
+	e := newTeamEnv(t)
+	e.seedTeam(t, "alpha")
+	nonMemberHidesAsNotFound(t, e, "DELETE", "/v1/teams/alpha", "/v1/teams/ghost")
+}
+
+func TestTeams_NonOwnerMember_Delete403(t *testing.T) {
+	// Owner-only ops keep 403 for *members* who aren't the owner — they
+	// already know the team exists, so honesty wins.
+	e := newTeamEnv(t)
+	e.seedTeam(t, "alpha")
+	team, _ := e.store.GetTeamByName(context.Background(), "alpha")
+	_ = e.store.AddTeamMember(context.Background(), team.ID, e.bobID, "member")
+
+	resp := e.do(t, "DELETE", "/v1/teams/alpha", nil, e.bobToken)
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusForbidden {
+		t.Errorf("non-owner member delete: status = %d, want 403", resp.StatusCode)
+	}
+}
+
 func TestInvites_ExpiredAcceptLeavesNoOrphanRows(t *testing.T) {
 	// Repeated unauthenticated accepts against an expired/invalid code
 	// must not fill the users + tokens tables with orphan rows — the
@@ -409,16 +542,6 @@ func TestInvites_ExpiredReturns410(t *testing.T) {
 }
 
 // ---- members ----
-
-func TestTeams_MembersListRequiresMembership(t *testing.T) {
-	e := newTeamEnv(t)
-	_ = e.do(t, "POST", "/v1/teams", map[string]string{"name": "alpha"}, e.aliceToken).Body.Close()
-	resp := e.do(t, "GET", "/v1/teams/alpha/members", nil, e.bobToken)
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusForbidden {
-		t.Errorf("non-member members list: status = %d, want 403", resp.StatusCode)
-	}
-}
 
 func TestTeams_LeaveSucceeds(t *testing.T) {
 	e := newTeamEnv(t)

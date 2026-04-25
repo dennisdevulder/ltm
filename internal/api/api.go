@@ -144,18 +144,8 @@ func (s *Server) createPacket(w http.ResponseWriter, r *http.Request) {
 
 	var teamID string
 	if teamName != "" {
-		t, err := s.Store.GetTeamByName(r.Context(), teamName)
-		if err != nil {
-			// Hide existence from non-members: 404, not 403.
-			writeErr(w, http.StatusNotFound, "team not found")
-			return
-		}
-		role, err := s.Store.TeamMembership(r.Context(), t.ID, uid)
-		if err != nil {
-			writeErr(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-		if role == "" {
+		t, _, ok := s.teamForCaller(r.Context(), teamName, uid)
+		if !ok {
 			writeErr(w, http.StatusNotFound, "team not found")
 			return
 		}
@@ -209,9 +199,32 @@ func (s *Server) listPackets(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"packets": items})
 }
 
+// teamForCaller resolves a team name AND verifies the caller is a member.
+// Returns (team, role, true) only when both conditions hold. Non-members
+// and missing teams are indistinguishable from outside — the boolean is
+// false in both cases. This is the foundation of the 404-everywhere
+// posture: handlers that require membership write
+//
+//	team, _, ok := s.teamForCaller(ctx, name, uid)
+//	if !ok { writeErr(w, 404, "team not found"); return }
+//
+// Owner-only operations layer on top: if `ok` is true and `role != "owner"`,
+// they can return 403 because the caller has already proven membership.
+func (s *Server) teamForCaller(ctx context.Context, name, uid string) (*store.Team, string, bool) {
+	t, err := s.Store.GetTeamByName(ctx, name)
+	if err != nil {
+		return nil, "", false
+	}
+	role, err := s.Store.TeamMembership(ctx, t.ID, uid)
+	if err != nil || role == "" {
+		return nil, "", false
+	}
+	return t, role, true
+}
+
 // fetchPacketsInScope returns the packets the caller is allowed to see for
-// the given scope. An empty team means personal scope. Membership is
-// enforced here so the caller only has to worry about rendering.
+// the given scope. An empty team means personal scope. Non-members and
+// missing teams both surface as 404 to keep team existence hidden.
 func (s *Server) fetchPacketsInScope(ctx context.Context, uid, team string, limit int) ([]store.PacketRow, int, error) {
 	if team == "" {
 		rows, err := s.Store.ListPacketsForOwner(ctx, uid, limit)
@@ -220,16 +233,9 @@ func (s *Server) fetchPacketsInScope(ctx context.Context, uid, team string, limi
 		}
 		return rows, http.StatusOK, nil
 	}
-	t, err := s.Store.GetTeamByName(ctx, team)
-	if err != nil {
-		return nil, http.StatusForbidden, errors.New("forbidden")
-	}
-	role, err := s.Store.TeamMembership(ctx, t.ID, uid)
-	if err != nil {
-		return nil, http.StatusInternalServerError, err
-	}
-	if role == "" {
-		return nil, http.StatusForbidden, errors.New("forbidden")
+	t, _, ok := s.teamForCaller(ctx, team, uid)
+	if !ok {
+		return nil, http.StatusNotFound, errors.New("team not found")
 	}
 	rows, err := s.Store.ListPacketsForTeam(ctx, t.ID, limit)
 	if err != nil {
@@ -296,6 +302,10 @@ func (s *Server) canReadPacket(ctx context.Context, row *store.PacketRow, uid st
 }
 
 // canDeletePacket — personal: owner. Team: team owner OR packet creator.
+// Note: a packet's original pusher remains a valid deleter even after they
+// leave or are removed from the team. This is the only authz rule that
+// outlives membership, and it's intentional — the creator should always
+// be able to take their packet down.
 func (s *Server) canDeletePacket(ctx context.Context, row *store.PacketRow, uid string) bool {
 	if row.TeamID == "" {
 		return row.OwnerID == uid
@@ -368,12 +378,14 @@ func (s *Server) listTeams(w http.ResponseWriter, r *http.Request) {
 func (s *Server) deleteTeam(w http.ResponseWriter, r *http.Request) {
 	uid := userIDFromContext(r.Context())
 	name := r.PathValue("name")
-	team, err := s.Store.GetTeamByName(r.Context(), name)
-	if err != nil {
+	team, role, ok := s.teamForCaller(r.Context(), name, uid)
+	if !ok {
+		// Non-member or missing team — both look the same from outside.
 		writeErr(w, http.StatusNotFound, "team not found")
 		return
 	}
-	if team.OwnerID != uid {
+	if role != "owner" {
+		// Caller is a member, so no existence to hide; 403 is honest.
 		writeErr(w, http.StatusForbidden, "only the team owner can delete a team")
 		return
 	}
@@ -387,18 +399,9 @@ func (s *Server) deleteTeam(w http.ResponseWriter, r *http.Request) {
 func (s *Server) listTeamMembers(w http.ResponseWriter, r *http.Request) {
 	uid := userIDFromContext(r.Context())
 	name := r.PathValue("name")
-	team, err := s.Store.GetTeamByName(r.Context(), name)
-	if err != nil {
+	team, _, ok := s.teamForCaller(r.Context(), name, uid)
+	if !ok {
 		writeErr(w, http.StatusNotFound, "team not found")
-		return
-	}
-	role, err := s.Store.TeamMembership(r.Context(), team.ID, uid)
-	if err != nil {
-		writeErr(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	if role == "" {
-		writeErr(w, http.StatusForbidden, "not a team member")
 		return
 	}
 	members, err := s.Store.ListTeamMembers(r.Context(), team.ID)
@@ -426,12 +429,12 @@ func (s *Server) removeTeamMember(w http.ResponseWriter, r *http.Request) {
 	uid := userIDFromContext(r.Context())
 	name := r.PathValue("name")
 	target := r.PathValue("user_id")
-	team, err := s.Store.GetTeamByName(r.Context(), name)
-	if err != nil {
+	team, role, ok := s.teamForCaller(r.Context(), name, uid)
+	if !ok {
 		writeErr(w, http.StatusNotFound, "team not found")
 		return
 	}
-	if team.OwnerID != uid {
+	if role != "owner" {
 		writeErr(w, http.StatusForbidden, "only the team owner can remove members")
 		return
 	}
@@ -453,8 +456,8 @@ func (s *Server) removeTeamMember(w http.ResponseWriter, r *http.Request) {
 func (s *Server) leaveTeam(w http.ResponseWriter, r *http.Request) {
 	uid := userIDFromContext(r.Context())
 	name := r.PathValue("name")
-	team, err := s.Store.GetTeamByName(r.Context(), name)
-	if err != nil {
+	team, _, ok := s.teamForCaller(r.Context(), name, uid)
+	if !ok {
 		writeErr(w, http.StatusNotFound, "team not found")
 		return
 	}
@@ -475,21 +478,17 @@ func (s *Server) leaveTeam(w http.ResponseWriter, r *http.Request) {
 
 // ---- handlers: invites ----
 
+// createInvite mints a new invite. Per issue #40 spec, *any team member*
+// (not only the owner) may invite. If owner-only invites become required,
+// gate this on role == "owner" and add a separate transfer-of-ownership
+// route — there is currently no UI for an owner to revoke a member's
+// ability to invite.
 func (s *Server) createInvite(w http.ResponseWriter, r *http.Request) {
 	uid := userIDFromContext(r.Context())
 	name := r.PathValue("name")
-	team, err := s.Store.GetTeamByName(r.Context(), name)
-	if err != nil {
+	team, _, ok := s.teamForCaller(r.Context(), name, uid)
+	if !ok {
 		writeErr(w, http.StatusNotFound, "team not found")
-		return
-	}
-	role, err := s.Store.TeamMembership(r.Context(), team.ID, uid)
-	if err != nil {
-		writeErr(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	if role == "" {
-		writeErr(w, http.StatusForbidden, "not a team member")
 		return
 	}
 	code, err := newInviteCode()
@@ -512,14 +511,14 @@ func (s *Server) createInvite(w http.ResponseWriter, r *http.Request) {
 
 // acceptInvite: the only unauthenticated write endpoint. The invite code is
 // itself authentication. Behaviours:
-//   - Caller also presents a valid bearer → existing user joins the team.
-//   - Unauthenticated caller → server mints a fresh user + token and returns
-//     the token in the body so `ltm join <url>` works on a clean machine.
-//
-// The invite is validated (non-atomically) before any users or tokens are
-// minted, so repeated calls to /accept with a bad code don't fill the DB
-// with orphan rows. The authoritative atomic check is still in ConsumeInvite
-// — the pre-check just guards against unauthenticated DB growth.
+//   - Caller presents a valid bearer → existing user joins the team. Atomic
+//     because ConsumeInvite is itself atomic; no minting, no orphan-row
+//     surface.
+//   - Unauthenticated caller → server mints a fresh user + token + membership
+//     in one transaction (RedeemInviteAsNewUser) and returns the token in
+//     the body so `ltm join <url>` works on a clean machine. Concurrent
+//     unauth callers against one valid code therefore mint exactly one
+//     user, never N.
 func (s *Server) acceptInvite(w http.ResponseWriter, r *http.Request) {
 	code := r.PathValue("code")
 
@@ -542,11 +541,15 @@ func (s *Server) acceptInvite(w http.ResponseWriter, r *http.Request) {
 		displayName = strings.TrimSpace(in.Display)
 	}
 
-	// Pre-check: is the invite even redeemable? We still rely on
-	// ConsumeInvite below for atomic single-use semantics, but this stops
-	// unauthenticated callers from minting users just to hit a 410.
-	if existingUID == "" {
-		if err := s.Store.CheckInviteRedeemable(r.Context(), code, s.now()); err != nil {
+	var (
+		uid        string
+		teamID     string
+		tokenPlain string
+	)
+	if existingUID != "" {
+		uid = existingUID
+		inv, err := s.Store.ConsumeInvite(r.Context(), code, uid, s.now())
+		if err != nil {
 			if errors.Is(err, store.ErrInviteGone) {
 				writeErr(w, http.StatusGone, "invite expired or already consumed")
 				return
@@ -554,46 +557,39 @@ func (s *Server) acceptInvite(w http.ResponseWriter, r *http.Request) {
 			writeErr(w, http.StatusInternalServerError, err.Error())
 			return
 		}
-	}
-
-	var (
-		uid        string
-		tokenPlain string
-	)
-	if existingUID != "" {
-		uid = existingUID
-	} else {
-		newUID := store.NewULID()
-		if displayName == "" {
-			displayName = "invited-" + newUID[len(newUID)-6:]
-		}
-		if err := s.Store.PutUser(r.Context(), newUID, "", displayName); err != nil {
+		teamID = inv.TeamID
+		if err := s.Store.AddTeamMember(r.Context(), teamID, uid, "member"); err != nil {
 			writeErr(w, http.StatusInternalServerError, err.Error())
 			return
 		}
+	} else {
+		// Unauthed: atomic mint+consume+join. A losing race rolls back the
+		// speculative user + token inserts, so concurrent callers don't
+		// leave orphan rows behind.
 		tokenPlain = packet.RandomToken()
-		if err := s.Store.PutTokenHashForUser(r.Context(), auth.HashToken(tokenPlain), displayName, newUID); err != nil {
+		// We don't know the user id yet — the store mints one. Synthesize
+		// a default display from the about-to-be-minted id's tail by
+		// letting the store fill in. We pass a placeholder display the
+		// store will use verbatim; readability beats round-tripping.
+		display := displayName
+		if display == "" {
+			display = "invited-" + code[:6]
+		}
+		newUID, newTeamID, err := s.Store.RedeemInviteAsNewUser(
+			r.Context(), code, display, auth.HashToken(tokenPlain), s.now())
+		if err != nil {
+			if errors.Is(err, store.ErrInviteGone) {
+				writeErr(w, http.StatusGone, "invite expired or already consumed")
+				return
+			}
 			writeErr(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 		uid = newUID
+		teamID = newTeamID
 	}
 
-	inv, err := s.Store.ConsumeInvite(r.Context(), code, uid, s.now())
-	if err != nil {
-		if errors.Is(err, store.ErrInviteGone) {
-			writeErr(w, http.StatusGone, "invite expired or already consumed")
-			return
-		}
-		writeErr(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	if err := s.Store.AddTeamMember(r.Context(), inv.TeamID, uid, "member"); err != nil {
-		writeErr(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	team, err := s.Store.GetTeamByID(r.Context(), inv.TeamID)
+	team, err := s.Store.GetTeamByID(r.Context(), teamID)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
@@ -616,7 +612,8 @@ func (s *Server) acceptInvite(w http.ResponseWriter, r *http.Request) {
 	if tokenPlain != "" {
 		resp["token"] = tokenPlain
 	}
-	writeJSON(w, http.StatusOK, resp)
+	// 201: the operation creates a membership (and possibly a user).
+	writeJSON(w, http.StatusCreated, resp)
 }
 
 func (s *Server) now() time.Time {
@@ -627,19 +624,38 @@ func (s *Server) now() time.Time {
 }
 
 // inviteURL returns the public URL a recipient clicks / pastes into
-// `ltm join`. Prefers the configured ExternalURL; falls back to the request's
-// scheme+Host so self-hosted servers behind a reverse proxy still get a
-// useful link if ExternalURL is left unset.
+// `ltm join`. Resolution order:
+//
+//  1. ExternalURL — explicit operator override (--external-url flag or
+//     LTM_EXTERNAL_URL env). Wins over everything; used as-is.
+//  2. X-Forwarded-Proto / X-Forwarded-Host — set by reverse proxies
+//     (Caddy, nginx, Cloudflare). README points operators at proxies for
+//     TLS, so honoring these headers prevents silent http:// invite links.
+//  3. Request scheme + Host — last resort for bare/dev deploys.
+//
+// Trust model: when the server runs without a reverse proxy AND without
+// ExternalURL set, a malicious client can spoof these headers to inject a
+// scheme/host of their choosing into invite URLs. The blast radius is
+// limited to a wrong invite link the inviter then shares — no auth bypass,
+// no token leak. Operators behind a real proxy should set ExternalURL or
+// trust the proxy to strip/rewrite these headers.
 func (s *Server) inviteURL(r *http.Request, code string) string {
-	base := strings.TrimRight(s.ExternalURL, "/")
-	if base == "" {
-		scheme := "http"
+	if base := strings.TrimRight(s.ExternalURL, "/"); base != "" {
+		return base + "/v1/invites/" + code
+	}
+	scheme := r.Header.Get("X-Forwarded-Proto")
+	if scheme == "" {
 		if r.TLS != nil {
 			scheme = "https"
+		} else {
+			scheme = "http"
 		}
-		base = scheme + "://" + r.Host
 	}
-	return base + "/v1/invites/" + code
+	host := r.Header.Get("X-Forwarded-Host")
+	if host == "" {
+		host = r.Host
+	}
+	return scheme + "://" + host + "/v1/invites/" + code
 }
 
 // ---- id/code helpers ----

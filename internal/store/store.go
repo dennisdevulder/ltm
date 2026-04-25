@@ -9,13 +9,26 @@ import (
 	"time"
 
 	"github.com/oklog/ulid/v2"
-	_ "modernc.org/sqlite"
+	sqlite3 "modernc.org/sqlite"
+	sqlite3lib "modernc.org/sqlite/lib"
 )
 
 // NewULID returns a fresh ULID as a string. Exposed so the api layer can
 // mint team/user ids without depending on oklog/ulid directly.
 func NewULID() string {
 	return ulid.Make().String()
+}
+
+// isUniqueViolation returns true when err is a SQLite UNIQUE-constraint
+// violation. Uses the typed driver error (extended code 2067) instead of
+// substring-matching the message, which would silently break across driver
+// or SQLite-version upgrades.
+func isUniqueViolation(err error) bool {
+	var se *sqlite3.Error
+	if errors.As(err, &se) && se.Code() == sqlite3lib.SQLITE_CONSTRAINT_UNIQUE {
+		return true
+	}
+	return false
 }
 
 var (
@@ -132,6 +145,9 @@ func (s *Store) migrateTeams() error {
 		return nil
 	}
 	stmts := []string{
+		// SQLite's UNIQUE constraint allows multiple NULL emails — different
+		// from Postgres, where NULLs collide. We rely on this so anonymous
+		// invite-accept users (no email) don't trip a uniqueness error.
 		`CREATE TABLE IF NOT EXISTS users (
 			id         TEXT PRIMARY KEY,
 			email      TEXT UNIQUE,
@@ -488,7 +504,7 @@ func (s *Store) CreateTeam(ctx context.Context, id, name, ownerID string) error 
 		`INSERT INTO teams (id, name, owner_id, created_at) VALUES (?, ?, ?, ?)`,
 		id, name, ownerID, now,
 	); err != nil {
-		if strings.Contains(err.Error(), "UNIQUE") {
+		if isUniqueViolation(err) {
 			return ErrNameTaken
 		}
 		return err
@@ -750,6 +766,72 @@ func (s *Store) ConsumeInvite(ctx context.Context, code, userID string, now time
 	inv.ConsumedAt = &t
 	inv.ConsumedBy = userID
 	return inv, nil
+}
+
+// RedeemInviteAsNewUser atomically mints a fresh user, binds tokenHash to
+// them, consumes the invite (single-use, expiry-checked at now), and adds
+// the new user as a member of the invite's team — all in one transaction.
+//
+// The conditional UPDATE on invites is what guards single-use semantics
+// across concurrent callers. When that UPDATE matches zero rows (race lost
+// or expired), the entire tx rolls back, undoing the speculative user +
+// token inserts. This is the orphan-row guarantee for unauthenticated
+// /v1/invites/{code}/accept calls: N concurrent unauth callers against
+// the same code mint exactly one user + token + membership, no leaks.
+func (s *Store) RedeemInviteAsNewUser(ctx context.Context, code, display, tokenHash string, now time.Time) (userID, teamID string, err error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return "", "", err
+	}
+	defer tx.Rollback()
+
+	userID = NewULID()
+	nowStr := now.UTC().Format(time.RFC3339Nano)
+	if _, err := tx.ExecContext(ctx,
+		`INSERT INTO users (id, email, display, created_at) VALUES (?, NULL, ?, ?)`,
+		userID, display, nowStr,
+	); err != nil {
+		return "", "", err
+	}
+	if _, err := tx.ExecContext(ctx,
+		`INSERT INTO tokens (token_hash, label, created_at, user_id) VALUES (?, ?, ?, ?)
+		 ON CONFLICT(token_hash) DO NOTHING`,
+		tokenHash, display, nowStr, userID,
+	); err != nil {
+		return "", "", err
+	}
+	res, err := tx.ExecContext(ctx,
+		`UPDATE invites SET consumed_at = ?, consumed_by = ?
+		 WHERE code = ? AND consumed_at IS NULL AND expires_at > ?`,
+		nowStr, userID, code, nowStr,
+	)
+	if err != nil {
+		return "", "", err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return "", "", err
+	}
+	if n == 0 {
+		// Race lost / expired / missing — speculative inserts roll back.
+		return "", "", ErrInviteGone
+	}
+	if err := tx.QueryRowContext(ctx,
+		`SELECT team_id FROM invites WHERE code = ?`, code,
+	).Scan(&teamID); err != nil {
+		return "", "", err
+	}
+	if _, err := tx.ExecContext(ctx,
+		`INSERT INTO team_members (team_id, user_id, role, joined_at) VALUES (?, ?, 'member', ?)
+		 ON CONFLICT(team_id, user_id) DO NOTHING`,
+		teamID, userID, nowStr,
+	); err != nil {
+		return "", "", err
+	}
+	if err := tx.Commit(); err != nil {
+		return "", "", err
+	}
+	return userID, teamID, nil
 }
 
 func (s *Store) getInviteTx(ctx context.Context, tx *sql.Tx, code string) (*Invite, error) {
