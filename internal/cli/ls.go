@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"text/tabwriter"
 
@@ -21,7 +22,15 @@ type packetListRow struct {
 // body (so callers can emit --json unchanged) and the decoded rows. Shared by
 // `ltm ls` and the MCP `ls` tool so the two surfaces can never drift.
 func fetchPacketList(cl *client, limit int) (raw []byte, rows []packetListRow, err error) {
-	resp, err := cl.do("GET", fmt.Sprintf("/v1/packets?limit=%d", limit), nil)
+	return fetchPacketListScoped(cl, limit, "")
+}
+
+func fetchPacketListScoped(cl *client, limit int, team string) (raw []byte, rows []packetListRow, err error) {
+	path := fmt.Sprintf("/v1/packets?limit=%d", limit)
+	if team != "" {
+		path += "&team=" + url.QueryEscape(team)
+	}
+	resp, err := cl.do("GET", path, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -42,6 +51,7 @@ func fetchPacketList(cl *client, limit int) (raw []byte, rows []packetListRow, e
 func newLsCmd() *cobra.Command {
 	var asJSON bool
 	var limit int
+	var team string
 	c := &cobra.Command{
 		Use:   "ls",
 		Short: "List recent packets on the server.",
@@ -50,7 +60,7 @@ func newLsCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			raw, rows, err := fetchPacketList(cl, limit)
+			raw, rows, err := fetchPacketListScoped(cl, limit, team)
 			if err != nil {
 				return err
 			}
@@ -72,5 +82,6 @@ func newLsCmd() *cobra.Command {
 	}
 	c.Flags().BoolVar(&asJSON, "json", false, "emit raw JSON")
 	c.Flags().IntVar(&limit, "limit", 50, "max packets to return")
+	c.Flags().StringVarP(&team, "team", "t", "", "list this team's packets instead of personal")
 	return c
 }

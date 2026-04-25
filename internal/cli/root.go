@@ -42,6 +42,9 @@ func NewRootCmd() *cobra.Command {
 		newUpdateCmd(),
 		newServerCmd(),
 		newMcpCmd(),
+		newTeamsCmd(),
+		newInviteCmd(),
+		newJoinCmd(),
 	)
 	return root
 }

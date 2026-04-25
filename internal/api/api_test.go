@@ -27,15 +27,27 @@ const (
 )
 
 // newTestServer wires up a Store + Server + httptest.Server and seeds one
-// valid bearer token. Returned URL is the base URL (no path).
+// valid bearer token bound to a root user. Returned URL is the base URL.
 func newTestServer(t *testing.T) (baseURL string, s *store.Store) {
+	ts, st, _ := newTestServerWithUser(t, testToken, "root")
+	return ts, st
+}
+
+// newTestServerWithUser is the parameterised harness. Returns the test
+// server's URL, the store (so tests can peek), and the seeded user id (so
+// tests can assert authz boundaries).
+func newTestServerWithUser(t *testing.T, token, display string) (baseURL string, s *store.Store, userID string) {
 	t.Helper()
 	dbPath := filepath.Join(t.TempDir(), "ltm.db")
 	st, err := store.Open(dbPath)
 	if err != nil {
 		t.Fatalf("store.Open: %v", err)
 	}
-	if err := st.PutTokenHash(context.Background(), auth.HashToken(testToken), "test"); err != nil {
+	uid := store.NewULID()
+	if err := st.PutUser(context.Background(), uid, "", display); err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+	if err := st.PutTokenHashForUser(context.Background(), auth.HashToken(token), display, uid); err != nil {
 		t.Fatalf("seed token: %v", err)
 	}
 
@@ -46,7 +58,7 @@ func newTestServer(t *testing.T) (baseURL string, s *store.Store) {
 		ts.Close()
 		_ = st.Close()
 	})
-	return ts.URL, st
+	return ts.URL, st, uid
 }
 
 func validPacketJSON(t *testing.T, id string) []byte {
@@ -374,7 +386,7 @@ func TestShutdown_ClosesStore(t *testing.T) {
 		t.Fatalf("Shutdown: %v", err)
 	}
 	// Subsequent DB ops should fail because the connection is closed.
-	if _, err := st.ListPackets(context.Background(), 10); err == nil {
+	if _, err := st.ListPacketsForOwner(context.Background(), "any", 10); err == nil {
 		t.Error("expected store operation to fail after Shutdown, got nil")
 	}
 }
@@ -402,5 +414,69 @@ func TestCreatePacket_StoresCanonicalForm(t *testing.T) {
 	}
 	if p.ID != validID {
 		t.Errorf("parsed id = %q, want %q", p.ID, validID)
+	}
+}
+
+// ---- invite URL header / fallback behaviour ----
+
+// mintInviteAndReadURL creates a team and an invite, returning the URL
+// the server printed back. extraHeaders are sent on the create-invite
+// request — used to drive X-Forwarded-* behaviour.
+func mintInviteAndReadURL(t *testing.T, baseURL string, extraHeaders map[string]string) string {
+	t.Helper()
+	teamReq, _ := http.NewRequest("POST", baseURL+"/v1/teams",
+		bytes.NewReader([]byte(`{"name":"alpha"}`)))
+	teamReq.Header.Set("Authorization", "Bearer "+testToken)
+	teamReq.Header.Set("Content-Type", "application/json")
+	tr, err := http.DefaultClient.Do(teamReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tr.Body.Close()
+	if tr.StatusCode != http.StatusCreated {
+		t.Fatalf("seed team status = %d", tr.StatusCode)
+	}
+
+	invReq, _ := http.NewRequest("POST", baseURL+"/v1/teams/alpha/invites",
+		bytes.NewReader([]byte(`{}`)))
+	invReq.Header.Set("Authorization", "Bearer "+testToken)
+	invReq.Header.Set("Content-Type", "application/json")
+	for k, v := range extraHeaders {
+		invReq.Header.Set(k, v)
+	}
+	resp, err := http.DefaultClient.Do(invReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("invite status = %d", resp.StatusCode)
+	}
+	var body struct {
+		URL string `json:"url"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	return body.URL
+}
+
+func TestInviteURL_HonorsForwardedProto(t *testing.T) {
+	url, _ := newTestServer(t)
+	got := mintInviteAndReadURL(t, url, map[string]string{
+		"X-Forwarded-Proto": "https",
+		"X-Forwarded-Host":  "ltm.example.com",
+	})
+	const want = "https://ltm.example.com/v1/invites/"
+	if !strings.HasPrefix(got, want) {
+		t.Errorf("invite url = %q, want prefix %q", got, want)
+	}
+}
+
+func TestInviteURL_FallbackWhenNoForwardedHeaders(t *testing.T) {
+	url, _ := newTestServer(t)
+	got := mintInviteAndReadURL(t, url, nil)
+	if !strings.HasPrefix(got, url+"/v1/invites/") {
+		t.Errorf("invite url = %q, want prefix %q", got, url+"/v1/invites/")
 	}
 }

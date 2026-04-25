@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -13,6 +14,7 @@ import (
 func newPushCmd() *cobra.Command {
 	var allowUnredacted bool
 	var lenient bool
+	var team string
 
 	c := &cobra.Command{
 		Use:   "push [file | -]",
@@ -23,7 +25,7 @@ func newPushCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			id, err := validateAndPushPacket(raw, lenient, allowUnredacted)
+			id, err := validateAndPushPacket(raw, lenient, allowUnredacted, team)
 			if err != nil {
 				return err
 			}
@@ -33,6 +35,7 @@ func newPushCmd() *cobra.Command {
 	}
 	c.Flags().BoolVar(&allowUnredacted, "allow-unredacted", false, "skip the redaction pre-flight")
 	c.Flags().BoolVar(&lenient, "lenient", false, "skip schema validation")
+	c.Flags().StringVarP(&team, "team", "t", "", "push into this team instead of personal scope")
 	return c
 }
 
@@ -46,8 +49,9 @@ func readPacketInput(arg string) ([]byte, error) {
 
 // validateAndPushPacket runs the same validate → redact → POST pipeline that
 // push and save share. lenient skips schema validation; allowUnredacted skips
-// the secret/abs-path pre-flight. Returns the server-assigned packet ID.
-func validateAndPushPacket(raw []byte, lenient, allowUnredacted bool) (string, error) {
+// the secret/abs-path pre-flight. team routes the packet into a team's scope
+// ("" = personal). Returns the server-assigned packet ID.
+func validateAndPushPacket(raw []byte, lenient, allowUnredacted bool, team string) (string, error) {
 	if !lenient {
 		if err := packet.Validate(raw); err != nil {
 			return "", fmt.Errorf("packet rejected: %w", err)
@@ -74,7 +78,11 @@ func validateAndPushPacket(raw []byte, lenient, allowUnredacted bool) (string, e
 	if err != nil {
 		return "", err
 	}
-	resp, err := cl.do("POST", "/v1/packets", raw)
+	path := "/v1/packets"
+	if team != "" {
+		path += "?team=" + url.QueryEscape(team)
+	}
+	resp, err := cl.do("POST", path, raw)
 	if err != nil {
 		return "", err
 	}
