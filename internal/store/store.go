@@ -724,29 +724,21 @@ func (s *Store) GetInvite(ctx context.Context, code string) (*Invite, error) {
 // ErrInviteGone if the invite is expired, already consumed, or missing; that
 // single error drives the 410 Gone response on /v1/invites/{code}/accept.
 //
-// The conditional UPDATE (`WHERE consumed_at IS NULL`) plus a RowsAffected
-// check is what makes this safe under concurrent callers: if two requests
-// both see consumed_at=NULL in the preliminary SELECT, only one of their
-// UPDATEs will match, and the loser falls through to ErrInviteGone.
+// Implementation note: this used to BEGIN/SELECT/UPDATE inside one txn, but
+// in WAL mode that pattern hits SQLITE_BUSY_SNAPSHOT under concurrent
+// callers — two deferred-txn readers race past the SELECT, then both try
+// to upgrade to writer and SQLite's busy handler refuses to retry the
+// upgrade. We sidestep the snapshot conflict by issuing the conditional
+// UPDATE directly: SQLite serializes writers via the writer lock (with
+// busy_timeout backing off), and the `WHERE consumed_at IS NULL` predicate
+// means only the first writer flips the row. RowsAffected==0 → loser, no
+// snapshot involved.
 func (s *Store) ConsumeInvite(ctx context.Context, code, userID string, now time.Time) (*Invite, error) {
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-	inv, err := s.getInviteTx(ctx, tx, code)
-	if err != nil {
-		return nil, err
-	}
-	if inv.ConsumedAt != nil {
-		return nil, ErrInviteGone
-	}
-	if !inv.ExpiresAt.After(now) {
-		return nil, ErrInviteGone
-	}
-	res, err := tx.ExecContext(ctx,
-		`UPDATE invites SET consumed_at = ?, consumed_by = ? WHERE code = ? AND consumed_at IS NULL`,
-		now.UTC().Format(time.RFC3339Nano), userID, code,
+	nowStr := now.UTC().Format(time.RFC3339Nano)
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE invites SET consumed_at = ?, consumed_by = ?
+		 WHERE code = ? AND consumed_at IS NULL AND expires_at > ?`,
+		nowStr, userID, code, nowStr,
 	)
 	if err != nil {
 		return nil, err
@@ -756,16 +748,11 @@ func (s *Store) ConsumeInvite(ctx context.Context, code, userID string, now time
 		return nil, err
 	}
 	if n == 0 {
-		// A concurrent caller won the race between our SELECT and UPDATE.
+		// Either no such code, already consumed, or expired — all 410.
 		return nil, ErrInviteGone
 	}
-	if err := tx.Commit(); err != nil {
-		return nil, err
-	}
-	t := now.UTC()
-	inv.ConsumedAt = &t
-	inv.ConsumedBy = userID
-	return inv, nil
+	// We won. Read back the row to populate the returned Invite.
+	return s.GetInvite(ctx, code)
 }
 
 // RedeemInviteAsNewUser atomically mints a fresh user, binds tokenHash to
@@ -832,26 +819,4 @@ func (s *Store) RedeemInviteAsNewUser(ctx context.Context, code, display, tokenH
 		return "", "", err
 	}
 	return userID, teamID, nil
-}
-
-func (s *Store) getInviteTx(ctx context.Context, tx *sql.Tx, code string) (*Invite, error) {
-	row := tx.QueryRowContext(ctx,
-		`SELECT code, team_id, created_by, created_at, expires_at,
-				COALESCE(consumed_at, ''), COALESCE(consumed_by, '')
-		 FROM invites WHERE code = ?`, code)
-	var inv Invite
-	var created, expires, consumed string
-	if err := row.Scan(&inv.Code, &inv.TeamID, &inv.CreatedBy, &created, &expires, &consumed, &inv.ConsumedBy); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrInviteGone
-		}
-		return nil, err
-	}
-	inv.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)
-	inv.ExpiresAt, _ = time.Parse(time.RFC3339Nano, expires)
-	if consumed != "" {
-		t, _ := time.Parse(time.RFC3339Nano, consumed)
-		inv.ConsumedAt = &t
-	}
-	return &inv, nil
 }
