@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.0](https://github.com/dennisdevulder/ltm/compare/v0.9.0...v0.10.0) (2026-05-11)
+
+
+### Features
+
+* **cli:** add publish and unpublish commands ([#43](https://github.com/dennisdevulder/ltm/issues/43)) ([95b624c](https://github.com/dennisdevulder/ltm/commit/95b624c12e047915a119668d5c0d31bf9d178da8))
+
 ## [0.9.0](https://github.com/dennisdevulder/ltm/compare/v0.8.2...v0.9.0) (2026-04-25)
 
 
