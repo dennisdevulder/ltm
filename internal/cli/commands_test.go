@@ -128,11 +128,16 @@ func (f *fakeAPI) handler() http.Handler {
 			id := strings.TrimPrefix(r.URL.Path, "/v1/packets/")
 			f.mu.Lock()
 			p, ok := f.packets[id]
+			published := f.published[id]
 			f.mu.Unlock()
 			if !ok {
 				w.WriteHeader(404)
 				w.Write([]byte(`{"error":"not found"}`))
 				return
+			}
+			if published {
+				w.Header().Set("X-LTM-Published-At", "2026-01-01T00:00:00Z")
+				w.Header().Set("X-LTM-Public-URL", "https://example.test/p/"+id)
 			}
 			w.Header().Set("Content-Type", "application/json")
 			w.Write(p)
@@ -558,6 +563,78 @@ func TestUnpublish_NotFound(t *testing.T) {
 	_, _, err := run(t, nil, "unpublish", "01JBADBADBAD000000000000000")
 	if err == nil {
 		t.Error("expected error for unknown id")
+	}
+}
+
+func TestPublish_Idempotent(t *testing.T) {
+	api, _ := setupCLI(t)
+	api.packets[sampleID] = samplePacket(sampleID)
+
+	out1, _, err := run(t, nil, "publish", sampleID)
+	if err != nil {
+		t.Fatalf("first publish: %v", err)
+	}
+	out2, _, err := run(t, nil, "publish", sampleID)
+	if err != nil {
+		t.Fatalf("second publish: %v", err)
+	}
+	if out1 != out2 {
+		t.Errorf("re-publishing should return the same URL\nfirst:  %qsecond: %q", out1, out2)
+	}
+	if !api.published[sampleID] {
+		t.Error("packet should still be published after second publish")
+	}
+}
+
+func TestUnpublishThenRepublish(t *testing.T) {
+	api, _ := setupCLI(t)
+	api.packets[sampleID] = samplePacket(sampleID)
+
+	if _, _, err := run(t, nil, "publish", sampleID); err != nil {
+		t.Fatalf("publish: %v", err)
+	}
+	if _, _, err := run(t, nil, "unpublish", sampleID); err != nil {
+		t.Fatalf("unpublish: %v", err)
+	}
+	if api.published[sampleID] {
+		t.Fatal("packet should not be published after unpublish")
+	}
+	out, _, err := run(t, nil, "publish", sampleID)
+	if err != nil {
+		t.Fatalf("republish: %v", err)
+	}
+	if !strings.Contains(out, "/p/"+sampleID) {
+		t.Errorf("republish should return a public URL, got: %q", out)
+	}
+	if !api.published[sampleID] {
+		t.Error("packet should be published again")
+	}
+}
+
+func TestShow_DisplaysPublishedState(t *testing.T) {
+	api, _ := setupCLI(t)
+	api.packets[sampleID] = samplePacket(sampleID)
+
+	// Unpublished: no "Published" line.
+	out, _, err := run(t, nil, "show", sampleID)
+	if err != nil {
+		t.Fatalf("show (unpublished): %v", err)
+	}
+	if strings.Contains(out, "Published") {
+		t.Errorf("unpublished packet should not show 'Published' line, got:\n%s", out)
+	}
+
+	// Publish, then show: line appears with URL.
+	api.published[sampleID] = true
+	out, _, err = run(t, nil, "show", sampleID)
+	if err != nil {
+		t.Fatalf("show (published): %v", err)
+	}
+	if !strings.Contains(out, "Published  2026-01-01T00:00:00Z") {
+		t.Errorf("show should display publish timestamp, got:\n%s", out)
+	}
+	if !strings.Contains(out, "https://example.test/p/"+sampleID) {
+		t.Errorf("show should display public URL, got:\n%s", out)
 	}
 }
 

@@ -149,7 +149,7 @@ func TestMCP_ToolsList_ReturnsAllTools(t *testing.T) {
 	if !ok {
 		t.Fatalf("tools field wrong type: %#v", m["tools"])
 	}
-	want := []string{"ls", "show", "pull", "resume", "push", "save", "rm", "example", "whoami"}
+	want := []string{"ls", "show", "pull", "resume", "push", "save", "rm", "publish", "unpublish", "example", "whoami"}
 	got := make(map[string]bool, len(tools))
 	for _, td := range tools {
 		got[td.Name] = true
@@ -176,7 +176,7 @@ func TestMCP_ToolsList_RequiredArgs(t *testing.T) {
 	for _, td := range tools {
 		byName[td.Name] = td
 	}
-	for _, name := range []string{"show", "pull", "resume", "rm"} {
+	for _, name := range []string{"show", "pull", "resume", "rm", "publish", "unpublish"} {
 		req, ok := byName[name].InputSchema["required"].([]string)
 		if !ok || len(req) == 0 || req[0] != "id" {
 			t.Errorf("tool %q should require 'id', got required=%v", name, req)

@@ -270,6 +270,31 @@ func toolDefinitions() []toolDef {
 			},
 		},
 		{
+			Name: "publish",
+			Description: "Publish a packet to a public URL anyone can view (no account required) and copy as a prompt. " +
+				"The URL is unguessable (it embeds the packet's ULID). Returns the public URL. " +
+				"Idempotent — re-publishing a published packet preserves the original URL and timestamp. " +
+				"Confirm with the user before calling: this makes the packet content world-readable.",
+			InputSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"id": map[string]any{"type": "string", "description": "Packet ID to publish."},
+				},
+				"required": []string{"id"},
+			},
+		},
+		{
+			Name:        "unpublish",
+			Description: "Revoke public access to a previously published packet. The packet itself is not deleted — only the public URL stops working.",
+			InputSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"id": map[string]any{"type": "string", "description": "Packet ID to unpublish."},
+				},
+				"required": []string{"id"},
+			},
+		},
+		{
 			Name:        "example",
 			Description: "Return an embedded sample v0.2 Core Memory Packet. Useful as a shape reference before calling 'push'. No server round-trip.",
 			InputSchema: map[string]any{"type": "object", "properties": map[string]any{}},
@@ -310,6 +335,10 @@ func handleToolCall(req *rpcRequest) rpcResponse {
 		text, err = toolPush(params.Arguments)
 	case "rm":
 		text, err = toolRm(params.Arguments)
+	case "publish":
+		text, err = toolPublish(params.Arguments)
+	case "unpublish":
+		text, err = toolUnpublish(params.Arguments)
 	case "example":
 		text = string(embeddedExamplePacket)
 	case "whoami":
@@ -385,11 +414,11 @@ func toolShow(raw json.RawMessage) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	body, err := fetchPacketBody(cl, id)
+	body, meta, err := fetchPacketWithMeta(cl, id)
 	if err != nil {
 		return "", err
 	}
-	return formatPacketSummary(body)
+	return formatPacketSummary(body, meta)
 }
 
 func toolPull(raw json.RawMessage) (string, error) {
@@ -492,6 +521,56 @@ func toolRm(raw json.RawMessage) (string, error) {
 		return "", err
 	}
 	return "deleted " + id, nil
+}
+
+func toolPublish(raw json.RawMessage) (string, error) {
+	id, err := argID(raw)
+	if err != nil {
+		return "", err
+	}
+	cl, err := newClient()
+	if err != nil {
+		return "", err
+	}
+	resp, err := cl.do("POST", "/v1/packets/"+id+"/publish", nil)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if err := errFromResponse(resp); err != nil {
+		return "", err
+	}
+	body, _ := io.ReadAll(resp.Body)
+	var parsed struct {
+		PublicURL string `json:"public_url"`
+	}
+	if err := json.Unmarshal(body, &parsed); err != nil {
+		return "", fmt.Errorf("decode publish response: %w", err)
+	}
+	if parsed.PublicURL == "" {
+		return "published " + id, nil
+	}
+	return parsed.PublicURL, nil
+}
+
+func toolUnpublish(raw json.RawMessage) (string, error) {
+	id, err := argID(raw)
+	if err != nil {
+		return "", err
+	}
+	cl, err := newClient()
+	if err != nil {
+		return "", err
+	}
+	resp, err := cl.do("DELETE", "/v1/packets/"+id+"/publish", nil)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if err := errFromResponse(resp); err != nil {
+		return "", err
+	}
+	return "unpublished " + id, nil
 }
 
 func toolWhoami() (string, error) {
