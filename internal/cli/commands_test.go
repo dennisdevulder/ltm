@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -19,9 +20,10 @@ import (
 // It lets integration tests exercise every CLI command end-to-end without a
 // real server, without touching a real DB, and without real auth.
 type fakeAPI struct {
-	mu       sync.Mutex
-	packets  map[string]json.RawMessage
-	requests []recordedReq
+	mu        sync.Mutex
+	packets   map[string]json.RawMessage
+	published map[string]bool
+	requests  []recordedReq
 	// test knobs
 	statusOverride int
 	bodyOverride   string
@@ -35,7 +37,7 @@ type recordedReq struct {
 }
 
 func newFakeAPI() *fakeAPI {
-	return &fakeAPI{packets: map[string]json.RawMessage{}}
+	return &fakeAPI{packets: map[string]json.RawMessage{}, published: map[string]bool{}}
 }
 
 func (f *fakeAPI) handler() http.Handler {
@@ -94,6 +96,34 @@ func (f *fakeAPI) handler() http.Handler {
 			f.mu.Unlock()
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(out)
+		case r.Method == "POST" && strings.HasSuffix(r.URL.Path, "/publish") && strings.HasPrefix(r.URL.Path, "/v1/packets/"):
+			id := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/v1/packets/"), "/publish")
+			f.mu.Lock()
+			_, ok := f.packets[id]
+			if ok {
+				f.published[id] = true
+			}
+			f.mu.Unlock()
+			if !ok {
+				w.WriteHeader(404)
+				w.Write([]byte(`{"error":"not found"}`))
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(200)
+			fmt.Fprintf(w, `{"id":"%s","published_at":"2026-01-01T00:00:00Z","public_url":"https://example.test/p/%s"}`, id, id)
+		case r.Method == "DELETE" && strings.HasSuffix(r.URL.Path, "/publish") && strings.HasPrefix(r.URL.Path, "/v1/packets/"):
+			id := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/v1/packets/"), "/publish")
+			f.mu.Lock()
+			_, ok := f.packets[id]
+			delete(f.published, id)
+			f.mu.Unlock()
+			if !ok {
+				w.WriteHeader(404)
+				w.Write([]byte(`{"error":"not found"}`))
+				return
+			}
+			w.WriteHeader(204)
 		case r.Method == "GET" && strings.HasPrefix(r.URL.Path, "/v1/packets/"):
 			id := strings.TrimPrefix(r.URL.Path, "/v1/packets/")
 			f.mu.Lock()
@@ -475,6 +505,57 @@ func TestRm_DeletesFromServer(t *testing.T) {
 func TestRm_NotFound(t *testing.T) {
 	setupCLI(t)
 	_, _, err := run(t, nil, "rm", "01JBADBADBAD000000000000000")
+	if err == nil {
+		t.Error("expected error for unknown id")
+	}
+}
+
+// ---- publish / unpublish ----
+
+func TestPublish_PrintsPublicURL(t *testing.T) {
+	api, _ := setupCLI(t)
+	api.packets[sampleID] = samplePacket(sampleID)
+
+	out, _, err := run(t, nil, "publish", sampleID)
+	if err != nil {
+		t.Fatalf("publish: %v", err)
+	}
+	if !strings.Contains(out, "https://example.test/p/"+sampleID) {
+		t.Errorf("expected public URL in stdout, got: %q", out)
+	}
+	if !api.published[sampleID] {
+		t.Error("packet not marked published on server")
+	}
+}
+
+func TestPublish_NotFound(t *testing.T) {
+	setupCLI(t)
+	_, _, err := run(t, nil, "publish", "01JBADBADBAD000000000000000")
+	if err == nil {
+		t.Error("expected error for unknown id")
+	}
+}
+
+func TestUnpublish_PrintsConfirmation(t *testing.T) {
+	api, _ := setupCLI(t)
+	api.packets[sampleID] = samplePacket(sampleID)
+	api.published[sampleID] = true
+
+	out, _, err := run(t, nil, "unpublish", sampleID)
+	if err != nil {
+		t.Fatalf("unpublish: %v", err)
+	}
+	if !strings.Contains(out, "unpublished") {
+		t.Errorf("expected 'unpublished' in stdout, got: %q", out)
+	}
+	if api.published[sampleID] {
+		t.Error("packet still published on server after unpublish")
+	}
+}
+
+func TestUnpublish_NotFound(t *testing.T) {
+	setupCLI(t)
+	_, _, err := run(t, nil, "unpublish", "01JBADBADBAD000000000000000")
 	if err == nil {
 		t.Error("expected error for unknown id")
 	}
