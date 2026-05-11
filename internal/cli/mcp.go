@@ -304,6 +304,11 @@ func toolDefinitions() []toolDef {
 			Description: "Report the configured ltm host and a short fingerprint of the stored token. Use to verify the server the MCP will hit before pushing.",
 			InputSchema: map[string]any{"type": "object", "properties": map[string]any{}},
 		},
+		{
+			Name:        "platform",
+			Description: "Return the URL of the managed ltm platform's web dashboard so the agent can surface it to the user. Errors when the user is configured against a self-hosted server. No server round-trip.",
+			InputSchema: map[string]any{"type": "object", "properties": map[string]any{}},
+		},
 	}
 }
 
@@ -343,6 +348,8 @@ func handleToolCall(req *rpcRequest) rpcResponse {
 		text = string(embeddedExamplePacket)
 	case "whoami":
 		text, err = toolWhoami()
+	case "platform":
+		text, err = toolPlatform()
 	default:
 		return rpcResponse{Error: &rpcError{Code: -32602, Message: "unknown tool: " + params.Name}}
 	}
