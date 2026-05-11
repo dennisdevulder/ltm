@@ -3,7 +3,6 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"strings"
 
@@ -21,22 +20,17 @@ func newShowCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			resp, err := cl.do("GET", "/v1/packets/"+args[0], nil)
+			body, meta, err := fetchPacketWithMeta(cl, args[0])
 			if err != nil {
 				return err
 			}
-			defer resp.Body.Close()
-			if err := errFromResponse(resp); err != nil {
-				return err
-			}
-			body, _ := io.ReadAll(resp.Body)
 
 			if asJSON {
 				os.Stdout.Write(body)
 				os.Stdout.Write([]byte("\n"))
 				return nil
 			}
-			out, err := formatPacketSummary(body)
+			out, err := formatPacketSummary(body, meta)
 			if err != nil {
 				return err
 			}
@@ -50,8 +44,9 @@ func newShowCmd() *cobra.Command {
 
 // formatPacketSummary turns a raw packet response body into the human-readable
 // block `ltm show` prints. Shared with the MCP `show` tool so both surfaces
-// render identical output.
-func formatPacketSummary(body []byte) (string, error) {
+// render identical output. The meta argument carries server-controlled fields
+// (currently: publish state) that don't live in the packet body.
+func formatPacketSummary(body []byte, meta packetMeta) (string, error) {
 	var p struct {
 		ID            string   `json:"id"`
 		CreatedAt     string   `json:"created_at"`
@@ -84,6 +79,13 @@ func formatPacketSummary(body []byte) (string, error) {
 	fmt.Fprintf(&b, "ID         %s\n", p.ID)
 	fmt.Fprintf(&b, "Created    %s\n", p.CreatedAt)
 	fmt.Fprintf(&b, "Spec       v%s\n", p.LTMVersion)
+	if meta.PublishedAt != "" {
+		fmt.Fprintf(&b, "Published  %s", meta.PublishedAt)
+		if meta.PublicURL != "" {
+			fmt.Fprintf(&b, "  %s", meta.PublicURL)
+		}
+		fmt.Fprintln(&b)
+	}
 	if p.Project != nil && (p.Project.Name != "" || p.Project.Ref != "") {
 		fmt.Fprintf(&b, "Project    %s", p.Project.Name)
 		if p.Project.Ref != "" {

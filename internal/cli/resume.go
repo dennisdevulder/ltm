@@ -342,15 +342,35 @@ func filterAttempts(as []packet.Attempt, outcomes ...string) []packet.Attempt {
 // ---- helpers ----
 
 func fetchPacketBody(cl *client, id string) ([]byte, error) {
+	body, _, err := fetchPacketWithMeta(cl, id)
+	return body, err
+}
+
+// packetMeta carries server-controlled fields that the CLI surfaces alongside
+// the packet body — kept out of the body itself so 'pull' round-trips cleanly.
+type packetMeta struct {
+	PublishedAt string
+	PublicURL   string
+}
+
+func fetchPacketWithMeta(cl *client, id string) ([]byte, packetMeta, error) {
 	resp, err := cl.do("GET", "/v1/packets/"+id, nil)
 	if err != nil {
-		return nil, err
+		return nil, packetMeta{}, err
 	}
 	defer resp.Body.Close()
 	if err := errFromResponse(resp); err != nil {
-		return nil, err
+		return nil, packetMeta{}, err
 	}
-	return io.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, packetMeta{}, err
+	}
+	meta := packetMeta{
+		PublishedAt: resp.Header.Get("X-LTM-Published-At"),
+		PublicURL:   resp.Header.Get("X-LTM-Public-URL"),
+	}
+	return body, meta, nil
 }
 
 func shortID(id string) string {
