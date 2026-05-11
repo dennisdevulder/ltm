@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.0](https://github.com/dennisdevulder/ltm/compare/v0.10.0...v0.11.0) (2026-05-11)
+
+
+### Features
+
+* **cli:** add platform command to open managed dashboard ([#45](https://github.com/dennisdevulder/ltm/issues/45)) ([15e7e32](https://github.com/dennisdevulder/ltm/commit/15e7e32fd20d0a732e9dae0a94574489e539a82b))
+
 ## [0.10.0](https://github.com/dennisdevulder/ltm/compare/v0.9.0...v0.10.0) (2026-05-11)
 
 
