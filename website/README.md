@@ -5,6 +5,8 @@ Static site for https://ltm-cli.dev.
 ## What's here
 
 - `index.html` — the landing page (exported from the design agent).
+- `privacy.html` — privacy notice.
+- `icon.svg` / `icon.png` — favicon and apple-touch-icon. Same brand mark as the managed hub.
 - `install` — the `curl | sh` install script (a copy of `/install.sh` at the repo root). Served with no extension so `curl -fsSL https://ltm-cli.dev/install | sh` works.
 - `CNAME` — tells GitHub Pages which custom domain to serve.
 
