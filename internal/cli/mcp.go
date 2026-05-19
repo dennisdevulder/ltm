@@ -222,8 +222,8 @@ func toolDefinitions() []toolDef {
 		},
 		{
 			Name: "push",
-			Description: "Send a Core Memory Packet to the configured ltm server. The packet is schema-validated and scanned for secrets/absolute paths before upload. " +
-				"Pass the packet as a JSON object under 'packet'. Use 'ltm example' via the 'example' tool if you need a valid shape reference.",
+			Description: "Send a Core Memory Packet to the configured ltm server. The packet is schema-validated and scanned for secrets/absolute paths before upload. Pass the packet as a JSON object under 'packet'. " +
+				"For v0.2 (current; v0.1 still accepted): required top-level fields are ltm_version: \"0.2\", id (ULID), created_at (RFC3339), goal, next_step. v0.2 nests decisions/attempts as object arrays — call the 'example' tool for the exact shape before building one from scratch.",
 			InputSchema: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
@@ -241,8 +241,9 @@ func toolDefinitions() []toolDef {
 		},
 		{
 			Name: "save",
-			Description: "Save the current session as a Core Memory Packet. Build the packet JSON from the active conversation — goal, locked decisions, failed attempts, open questions, next step — and pass it as 'packet'. " +
-				"Same validation and redaction as 'push'; use this when the intent is 'persist my session' rather than 'ship a pre-built packet'.",
+			Description: "Save the current session as a Core Memory Packet (v0.2). Required top-level fields: ltm_version: \"0.2\", id (ULID), created_at (RFC3339), goal, next_step. " +
+				"Nested shape: decisions[] each {what, why, consequences?, locked?}; attempts[] each {tried, outcome: succeeded|failed|partial, learned?, confidence: low|medium|high?}; open_questions[] strings; optional project, success_criteria[], constraints[], methods[], tags[], provenance. " +
+				"Call the 'example' tool first to see a valid v0.2 packet. Same validation and redaction as 'push'; use 'save' when persisting the active session rather than shipping a pre-built packet.",
 			InputSchema: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
